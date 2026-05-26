@@ -19,7 +19,7 @@ CC BY-NC-SA 4.0 — see [LICENSE](LICENSE).
 ### VS Code Marketplace
 
 ```bash
-ext install yamapan.copilot-browser-bridge-vscode
+code --install-extension yamapan.copilot-browser-bridge-vscode
 ```
 
 Or search for "Copilot Browser Bridge" in VS Code Extensions (`Ctrl+Shift+X`)
@@ -59,6 +59,9 @@ Or search for "Copilot Browser Bridge" in VS Code Extensions (`Ctrl+Shift+X`)
 ## 🔧 Development
 
 ```bash
+# Run unit tests
+npm run test
+
 # Build
 npm run compile
 
@@ -80,7 +83,7 @@ CC BY-NC-SA 4.0 © [aktsmm](https://github.com/aktsmm)
 ## 🔒 Privacy
 
 - **Data Collection**: None
-- **Communication**: Only operates on localhost (localhost:3210)
+- **Communication**: Only operates on localhost using the configured port (default: `localhost:3210`)
 - **External Transmission**: Only sent to Copilot/Local LLM based on provider selection
 
 ## 🔗 Related Projects

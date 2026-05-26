@@ -39,8 +39,9 @@ const COPILOT_MODEL_FETCH_RETRY_DELAY_MS = 150;
 
 // Tool definitions for agent mode
 interface ToolCall {
+  callId: string;
   name: string;
-  parameters: Record<string, unknown>;
+  parameters: unknown;
 }
 
 interface ToolResult {
@@ -735,11 +736,7 @@ ${pageSection}`;
             tokenSource.token,
           );
 
-          const toolCalls: Array<{
-            callId: string;
-            name: string;
-            parameters: unknown;
-          }> = [];
+          const toolCalls: ToolCall[] = [];
 
           for await (const part of response.stream) {
             if (part instanceof vscode.LanguageModelTextPart) {

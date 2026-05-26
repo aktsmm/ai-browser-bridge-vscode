@@ -2,14 +2,15 @@ import * as http from "http";
 import * as vscode from "vscode";
 import { LLMRouter, ChatRequest } from "./llm-router";
 import { isSafeRelativePath, toWorkspaceFileUri } from "./path-safety";
+import {
+  hasTrustedBridgeClientHeader,
+  isAllowedExtensionOrigin,
+  validateChatRequestBody,
+} from "./request-guards";
 
 type ValidationResult<T> =
   | { ok: true; value: T }
   | { ok: false; error: string };
-
-const DEFAULT_ALLOWED_EXTENSION_ORIGINS = [
-  "chrome-extension://nggfpdadfepkbpjfnpcihagbnnfpeian",
-] as const;
 
 export class BridgeServer {
   private server: http.Server | null = null;
@@ -150,25 +151,11 @@ export class BridgeServer {
       .getConfiguration("copilotBrowserBridge")
       .get<string[]>("allowedExtensionOrigins", []);
 
-    const normalizedConfiguredOrigins = configuredOrigins
-      .filter((value) => typeof value === "string")
-      .map((value) => value.trim())
-      .filter((value) => /^chrome-extension:\/\/[a-p]{32}$/.test(value));
-
-    const allowedOrigins = new Set<string>([
-      ...DEFAULT_ALLOWED_EXTENSION_ORIGINS,
-      ...normalizedConfiguredOrigins,
-    ]);
-
-    return allowedOrigins.has(origin);
+    return isAllowedExtensionOrigin(origin, configuredOrigins);
   }
 
   private hasTrustedClientHeader(req: http.IncomingMessage): boolean {
-    const headerValue = req.headers["x-copilot-bridge-client"];
-    const clientValue = Array.isArray(headerValue)
-      ? headerValue[0]
-      : headerValue;
-    return clientValue === "chrome-extension";
+    return hasTrustedBridgeClientHeader(req.headers["x-copilot-bridge-client"]);
   }
 
   private async handleHealth(res: http.ServerResponse): Promise<void> {
@@ -311,89 +298,7 @@ export class BridgeServer {
   }
 
   private validateChatRequest(request: unknown): ValidationResult<ChatRequest> {
-    if (!request || typeof request !== "object") {
-      return { ok: false, error: "Invalid chat request body" };
-    }
-
-    const body = request as Record<string, unknown>;
-    const settings = body.settings as Record<string, unknown> | undefined;
-
-    if (!settings || typeof settings !== "object") {
-      return { ok: false, error: "Invalid chat settings" };
-    }
-
-    const provider = settings.provider;
-    const allowedProviders = ["copilot", "copilot-agent", "lm-studio"];
-    if (typeof provider !== "string" || !allowedProviders.includes(provider)) {
-      return { ok: false, error: "Invalid provider" };
-    }
-
-    if (provider === "copilot" || provider === "copilot-agent") {
-      const copilotSettings = settings.copilot as Record<string, unknown>;
-      if (
-        !copilotSettings ||
-        typeof copilotSettings !== "object" ||
-        typeof copilotSettings.model !== "string" ||
-        copilotSettings.model.trim().length === 0
-      ) {
-        return { ok: false, error: "Invalid copilot settings" };
-      }
-    }
-
-    if (provider === "lm-studio") {
-      const lmStudioSettings = settings.lmStudio as Record<string, unknown>;
-      if (
-        !lmStudioSettings ||
-        typeof lmStudioSettings !== "object" ||
-        typeof lmStudioSettings.endpoint !== "string" ||
-        typeof lmStudioSettings.model !== "string"
-      ) {
-        return { ok: false, error: "Invalid lmStudio settings" };
-      }
-
-      if (lmStudioSettings.endpoint.trim().length === 0) {
-        return { ok: false, error: "Invalid lmStudio endpoint" };
-      }
-    }
-
-    if (typeof body.pageContent !== "string") {
-      return { ok: false, error: "Invalid pageContent" };
-    }
-
-    if (!Array.isArray(body.messages)) {
-      return { ok: false, error: "Invalid messages" };
-    }
-
-    const roleSet = new Set(["user", "assistant", "system"]);
-    for (const message of body.messages) {
-      if (!message || typeof message !== "object") {
-        return { ok: false, error: "Invalid message item" };
-      }
-
-      const role = (message as Record<string, unknown>).role;
-      const content = (message as Record<string, unknown>).content;
-      if (typeof role !== "string" || !roleSet.has(role)) {
-        return { ok: false, error: "Invalid message role" };
-      }
-      if (typeof content !== "string") {
-        return { ok: false, error: "Invalid message content" };
-      }
-    }
-
-    if (body.screenshot !== undefined && typeof body.screenshot !== "string") {
-      return { ok: false, error: "Invalid screenshot" };
-    }
-
-    if (
-      body.operationMode !== undefined &&
-      body.operationMode !== "text" &&
-      body.operationMode !== "hybrid" &&
-      body.operationMode !== "screenshot"
-    ) {
-      return { ok: false, error: "Invalid operationMode" };
-    }
-
-    return { ok: true, value: request as ChatRequest };
+    return validateChatRequestBody(request);
   }
 
   private validateFileOperationRequest(request: unknown): ValidationResult<{

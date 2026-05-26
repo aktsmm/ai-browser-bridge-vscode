@@ -1,5 +1,9 @@
 .vscode/**
 src/**
+tests/**
+out/**/*.map
+eslint.config.mjs
 tsconfig.json
 .gitignore
 *.vsix
+
