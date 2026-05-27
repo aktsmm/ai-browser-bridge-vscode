@@ -8,7 +8,10 @@ vi.mock("vscode", () => ({
   },
 }));
 
-import { buildCopilotCliPrompt } from "../src/copilot-cli";
+import {
+  buildCopilotCliPrompt,
+  buildCopilotCliSpawnSpec,
+} from "../src/copilot-cli";
 
 describe("copilot CLI helper", () => {
   it("builds a chat fallback prompt with conversation history", () => {
@@ -36,5 +39,14 @@ describe("copilot CLI helper", () => {
 
     expect(prompt).toContain("read-only");
     expect(prompt).toContain("no tool execution");
+  });
+
+  it("uses pwsh file execution for a resolved ps1 path on Windows", () => {
+    expect(
+      buildCopilotCliSpawnSpec("C:\\tooling\\copilot.ps1", "win32"),
+    ).toEqual({
+      command: "pwsh",
+      argsPrefix: ["-NoProfile", "-File", "C:\\tooling\\copilot.ps1"],
+    });
   });
 });

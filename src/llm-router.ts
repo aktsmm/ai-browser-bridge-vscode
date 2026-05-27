@@ -4,6 +4,8 @@ import {
   CopilotCliClient,
   isCopilotCliFallbackEnabled,
 } from "./copilot-cli";
+import { isAllowedLmStudioEndpoint } from "./request-guards";
+import { validateTerminalCommand } from "./terminal-command-policy";
 import {
   isSafeRelativePath,
   toWorkspaceFileUri as toWorkspaceFileUriShared,
@@ -323,7 +325,7 @@ Tips for forms:
 Advanced actions:
 - [ACTION: clickXY, 200, 300] - Click at screen coordinates
 - [ACTION: pressKey, Enter] - Press a key
-- [ACTION: evaluate, () => document.title] - Evaluate JavaScript
+- [ACTION: evaluate, () => document.title] - Reserved for secure internal flows only (direct evaluate is blocked)
 - [ACTION: getConsole] - Get console logs
 - [ACTION: getNetwork, static] - Get network requests (include static)
 - [ACTION: handleDialog, accept, optional text] - Handle dialogs
@@ -839,7 +841,7 @@ ${pageSection}`;
         },
         {
           name: "run_terminal",
-          description: "ターミナルでコマンドを実行します",
+          description: "ターミナルで限定的な read-only コマンドのみ実行します",
           inputSchema: {
             type: "object",
             properties: {
@@ -1066,6 +1068,14 @@ ${pageSection}`;
               result: "無効なコマンドです（空文字は実行できません）",
             };
           }
+
+          const terminalCheck = validateTerminalCommand(command);
+          if (!terminalCheck.ok) {
+            return {
+              success: false,
+              result: terminalCheck.reason || "run_terminal は許可されていないコマンドです。",
+            };
+          }
           const terminal = vscode.window.createTerminal("Agent");
           terminal.show();
           terminal.sendText(command);
@@ -1137,7 +1147,7 @@ ${pageSection}`;
   private isAgentTerminalToolEnabled(): boolean {
     return vscode.workspace
       .getConfiguration("copilotBrowserBridge")
-      .get<boolean>("enableAgentTerminalTool", true);
+      .get<boolean>("enableAgentTerminalTool", false);
   }
 
   private toWorkspaceFileUri(relativePath: unknown): vscode.Uri | null {
@@ -1157,6 +1167,11 @@ ${pageSection}`;
   ): AsyncIterable<string> {
     const endpoint = settings.endpoint || "http://localhost:1234";
     let timedOut = false;
+
+    if (!isAllowedLmStudioEndpoint(endpoint)) {
+      yield "エラー: LM Studio エンドポイントは localhost または loopback のみ許可されています。";
+      return;
+    }
 
     try {
       // Build OpenAI-compatible request

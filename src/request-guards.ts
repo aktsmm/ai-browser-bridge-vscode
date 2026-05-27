@@ -11,6 +11,28 @@ export const DEFAULT_ALLOWED_EXTENSION_ORIGINS = [
 export const MAX_PAGE_CONTENT_LENGTH = 50_000;
 export const MAX_ATTACHMENT_COUNT = 5;
 
+export function isAllowedLmStudioEndpoint(endpoint: string): boolean {
+  try {
+    const parsed = new URL(endpoint);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return false;
+    }
+
+    const hostname = parsed.hostname.toLowerCase();
+    if (
+      hostname === "localhost" ||
+      hostname === "::1" ||
+      hostname === "[::1]"
+    ) {
+      return true;
+    }
+
+    return /^127(?:\.\d{1,3}){3}$/.test(hostname);
+  } catch {
+    return false;
+  }
+}
+
 export const PLAYWRIGHT_MCP_TOOL_MAP = {
   browser_click: "mcp_playwright_browser_click",
   browser_type: "mcp_playwright_browser_type",
@@ -109,6 +131,13 @@ export function validateChatRequestBody(
 
     if (lmStudioSettings.endpoint.trim().length === 0) {
       return { ok: false, error: "Invalid lmStudio endpoint" };
+    }
+
+    if (!isAllowedLmStudioEndpoint(lmStudioSettings.endpoint)) {
+      return {
+        ok: false,
+        error: "LM Studio endpoint must use a localhost or loopback address",
+      };
     }
   }
 

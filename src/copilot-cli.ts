@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { spawn } from "child_process";
+import { spawn, spawnSync } from "child_process";
 
 export interface CopilotCliMessage {
   role: "user" | "assistant" | "system";
@@ -7,6 +7,44 @@ export interface CopilotCliMessage {
 }
 
 export const COPILOT_CLI_TIMEOUT_MS = 30_000;
+
+export function buildCopilotCliSpawnSpec(
+  resolvedCommand: string,
+  platform = process.platform,
+): { command: string; argsPrefix: string[] } {
+  if (platform === "win32" && resolvedCommand.toLowerCase().endsWith(".ps1")) {
+    return {
+      command: "pwsh",
+      argsPrefix: ["-NoProfile", "-File", resolvedCommand],
+    };
+  }
+
+  return {
+    command: resolvedCommand,
+    argsPrefix: [],
+  };
+}
+
+function resolveCopilotCliCommand(platform = process.platform): string {
+  if (platform !== "win32") {
+    return "copilot";
+  }
+
+  try {
+    const result = spawnSync("where.exe", ["copilot"], {
+      encoding: "utf8",
+      shell: false,
+    });
+    const firstMatch = result.stdout
+      ?.split(/\r?\n/)
+      .map((line) => line.trim())
+      .find((line) => line.length > 0);
+
+    return firstMatch || "copilot";
+  } catch {
+    return "copilot";
+  }
+}
 
 export function buildCopilotCliPrompt(
   systemPrompt: string,
@@ -40,8 +78,12 @@ function runCliCommand(
   abortSignal?: AbortSignal,
 ): Promise<{ stdout: string; stderr: string; exitCode: number | null }> {
   return new Promise((resolve, reject) => {
-    const child = spawn("copilot", args, {
-      shell: process.platform === "win32",
+    const spawnSpec = buildCopilotCliSpawnSpec(
+      resolveCopilotCliCommand(),
+      process.platform,
+    );
+    const child = spawn(spawnSpec.command, [...spawnSpec.argsPrefix, ...args], {
+      shell: false,
       stdio: ["ignore", "pipe", "pipe"],
     });
 

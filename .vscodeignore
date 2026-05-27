@@ -1,6 +1,8 @@
 .vscode/**
 src/**
 tests/**
+out/*.d.ts
+out/**/*.d.ts
 out/**/*.map
 eslint.config.mjs
 tsconfig.json

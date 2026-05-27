@@ -2,7 +2,7 @@
   "name": "copilot-browser-bridge-vscode",
   "displayName": "GitHub Copilot Browser Bridge",
   "description": "ブラウザのページ内容をGitHub Copilot/ローカルLLMで解析・対話",
-  "version": "0.1.11",
+  "version": "0.1.13",
   "publisher": "yamapan",
   "repository": {
     "type": "git",
@@ -44,8 +44,8 @@
         },
         "copilotBrowserBridge.enableAgentTerminalTool": {
           "type": "boolean",
-          "default": true,
-          "description": "Allow copilot-agent tool calls to execute terminal commands"
+          "default": false,
+          "description": "Allow a small read-only subset of copilot-agent terminal commands"
         },
         "copilotBrowserBridge.enableCopilotCliFallback": {
           "type": "boolean",

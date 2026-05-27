@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_ALLOWED_EXTENSION_ORIGINS,
   hasTrustedBridgeClientHeader,
+  isAllowedLmStudioEndpoint,
   isAllowedPlaywrightAction,
   isAllowedExtensionOrigin,
   MAX_ATTACHMENT_COUNT,
@@ -77,6 +78,33 @@ describe("request guards", () => {
       ok: true,
       value: request,
     });
+  });
+
+  it("rejects non-loopback lm-studio endpoints", () => {
+    const request = {
+      settings: {
+        provider: "lm-studio",
+        lmStudio: {
+          endpoint: "https://evil.example.com",
+          model: "local-model",
+        },
+      },
+      messages: [{ role: "user", content: "Hello" }],
+      pageContent: "short page",
+    };
+
+    expect(validateChatRequestBody(request)).toEqual({
+      ok: false,
+      error: "LM Studio endpoint must use a localhost or loopback address",
+    });
+  });
+
+  it("allows only localhost or loopback lm-studio endpoints", () => {
+    expect(isAllowedLmStudioEndpoint("http://localhost:1234")).toBe(true);
+    expect(isAllowedLmStudioEndpoint("http://127.0.0.1:1234")).toBe(true);
+    expect(isAllowedLmStudioEndpoint("http://127.0.0.5:1234")).toBe(true);
+    expect(isAllowedLmStudioEndpoint("http://[::1]:1234")).toBe(true);
+    expect(isAllowedLmStudioEndpoint("https://example.com")).toBe(false);
   });
 
   it("accepts only known playwright actions", () => {

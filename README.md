@@ -53,7 +53,7 @@ Or search for "GitHub Copilot Browser Bridge" in VS Code Extensions (`Ctrl+Shift
 | ---------------------------------------------- | ------- | ------------------------------------------------ |
 | `copilotBrowserBridge.serverPort`              | 3210    | Local server port number                         |
 | `copilotBrowserBridge.autoStart`               | true    | Auto-start server on VS Code launch              |
-| `copilotBrowserBridge.enableAgentTerminalTool` | true    | Allow agent `run_terminal` tool execution        |
+| `copilotBrowserBridge.enableAgentTerminalTool` | false   | Allow a small read-only subset of agent `run_terminal` commands |
 | `copilotBrowserBridge.enableCopilotCliFallback` | true   | Allow GitHub Copilot CLI fallback when VS Code model access is unavailable |
 | `copilotBrowserBridge.allowedExtensionOrigins` | []      | Additional allowed `chrome-extension://` origins |
 
@@ -62,6 +62,7 @@ Or search for "GitHub Copilot Browser Bridge" in VS Code Extensions (`Ctrl+Shift
 - The Chrome side can now save generated Markdown to a workspace-relative path through the VS Code bridge
 - If workspace-relative save is requested without an open workspace, the Chrome extension falls back to browser downloads
 - GitHub Copilot CLI can be used as a fallback response path when VS Code language model access is unavailable
+- LM Studio endpoints are restricted to localhost / loopback addresses for safety
 
 ## 🔧 Development
 

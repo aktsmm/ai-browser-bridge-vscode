@@ -56,7 +56,7 @@ code --install-extension yamapan.copilot-browser-bridge-vscode
 | ---------------------------------------------- | ---------- | --------------------------------------------- |
 | `copilotBrowserBridge.serverPort`              | 3210       | ローカルサーバーのポート番号                  |
 | `copilotBrowserBridge.autoStart`               | true       | VS Code起動時に自動でサーバーを開始           |
-| `copilotBrowserBridge.enableAgentTerminalTool` | true       | エージェントの `run_terminal` 実行を許可      |
+| `copilotBrowserBridge.enableAgentTerminalTool` | false      | エージェントの `run_terminal` 実行を限定的な read-only コマンドに対してのみ許可 |
 | `copilotBrowserBridge.enableCopilotCliFallback` | true      | VS Code のモデルアクセスが使えない場合に GitHub Copilot CLI fallback を許可 |
 | `copilotBrowserBridge.allowedExtensionOrigins` | []         | 追加で許可する `chrome-extension://` オリジン |
 
@@ -65,6 +65,7 @@ code --install-extension yamapan.copilot-browser-bridge-vscode
 - Chrome 側で生成した Markdown を VS Code workspace 相対 path へ保存できるようになりました
 - workspace 相対保存を要求しても workspace が未オープンなら、Chrome 拡張はブラウザのダウンロードへフォールバックします
 - VS Code の language model access が使えない場合、GitHub Copilot CLI を fallback 応答経路として利用できます
+- LM Studio の endpoint は安全のため localhost / loopback アドレスのみに制限されます
 
 ## 🔧 開発
 
