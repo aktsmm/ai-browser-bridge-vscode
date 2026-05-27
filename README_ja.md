@@ -1,4 +1,4 @@
-# Copilot Browser Bridge for VS Code
+# GitHub Copilot Browser Bridge for VS Code
 
 [![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/yamapan.copilot-browser-bridge-vscode?label=VS%20Code%20Marketplace&logo=visual-studio-code)](https://marketplace.visualstudio.com/items?itemName=yamapan.copilot-browser-bridge-vscode)
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](LICENSE)
@@ -25,7 +25,7 @@
 code --install-extension yamapan.copilot-browser-bridge-vscode
 ```
 
-または VS Code の拡張機能パネル (`Ctrl+Shift+X`) で「Copilot Browser Bridge」を検索
+または VS Code の拡張機能パネル (`Ctrl+Shift+X`) で「GitHub Copilot Browser Bridge」を検索
 
 ### 手動インストール
 
@@ -36,7 +36,7 @@ code --install-extension yamapan.copilot-browser-bridge-vscode
 ## 📋 必要条件
 
 - **VS Code** 1.90.0 以上
-- **Chrome拡張機能**: [Copilot Browser Bridge](https://github.com/aktsmm/copilot-browser-bridge)
+- **Chrome拡張機能**: [GitHub Copilot Browser Bridge](https://github.com/aktsmm/copilot-browser-bridge)
 - **GitHub Copilot** サブスクリプション、または **LM Studio**（ローカルLLM）
 
 ## 🎮 使い方
@@ -47,8 +47,8 @@ code --install-extension yamapan.copilot-browser-bridge-vscode
 
 ### コマンド
 
-- `Copilot Browser Bridge: Start Server` - サーバーを手動で開始
-- `Copilot Browser Bridge: Stop Server` - サーバーを停止
+- `GitHub Copilot Browser Bridge: Start Server` - サーバーを手動で開始
+- `GitHub Copilot Browser Bridge: Stop Server` - サーバーを停止
 
 ## ⚙️ 設定
 
@@ -57,7 +57,14 @@ code --install-extension yamapan.copilot-browser-bridge-vscode
 | `copilotBrowserBridge.serverPort`              | 3210       | ローカルサーバーのポート番号                  |
 | `copilotBrowserBridge.autoStart`               | true       | VS Code起動時に自動でサーバーを開始           |
 | `copilotBrowserBridge.enableAgentTerminalTool` | true       | エージェントの `run_terminal` 実行を許可      |
+| `copilotBrowserBridge.enableCopilotCliFallback` | true      | VS Code のモデルアクセスが使えない場合に GitHub Copilot CLI fallback を許可 |
 | `copilotBrowserBridge.allowedExtensionOrigins` | []         | 追加で許可する `chrome-extension://` オリジン |
+
+### Bridge の挙動
+
+- Chrome 側で生成した Markdown を VS Code workspace 相対 path へ保存できるようになりました
+- workspace 相対保存を要求しても workspace が未オープンなら、Chrome 拡張はブラウザのダウンロードへフォールバックします
+- VS Code の language model access が使えない場合、GitHub Copilot CLI を fallback 応答経路として利用できます
 
 ## 🔧 開発
 
@@ -91,7 +98,7 @@ CC BY-NC-SA 4.0 © [aktsmm](https://github.com/aktsmm)
 
 ## 🔗 関連プロジェクト
 
-- [Copilot Browser Bridge (Chrome Extension)](https://github.com/aktsmm/copilot-browser-bridge)
+- [GitHub Copilot Browser Bridge (Chrome Extension)](https://github.com/aktsmm/copilot-browser-bridge)
 
 ## 👤 Author
 

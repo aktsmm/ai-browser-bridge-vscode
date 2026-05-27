@@ -9,6 +9,7 @@ export const DEFAULT_ALLOWED_EXTENSION_ORIGINS = [
 ] as const;
 
 export const MAX_PAGE_CONTENT_LENGTH = 50_000;
+export const MAX_ATTACHMENT_COUNT = 5;
 
 export const PLAYWRIGHT_MCP_TOOL_MAP = {
   browser_click: "mcp_playwright_browser_click",
@@ -144,6 +145,49 @@ export function validateChatRequestBody(
 
   if (body.screenshot !== undefined && typeof body.screenshot !== "string") {
     return { ok: false, error: "Invalid screenshot" };
+  }
+
+  if (body.attachments !== undefined) {
+    if (!Array.isArray(body.attachments)) {
+      return { ok: false, error: "Invalid attachments" };
+    }
+
+    if (body.attachments.length > MAX_ATTACHMENT_COUNT) {
+      return {
+        ok: false,
+        error: `attachments exceed ${MAX_ATTACHMENT_COUNT} items`,
+      };
+    }
+
+    for (const attachment of body.attachments) {
+      if (!attachment || typeof attachment !== "object") {
+        return { ok: false, error: "Invalid attachment item" };
+      }
+
+      const item = attachment as Record<string, unknown>;
+      if (typeof item.id !== "string" || typeof item.name !== "string") {
+        return { ok: false, error: "Invalid attachment identity" };
+      }
+      if (
+        item.kind !== "text" &&
+        item.kind !== "image" &&
+        item.kind !== "pdf"
+      ) {
+        return { ok: false, error: "Invalid attachment kind" };
+      }
+      if (typeof item.mimeType !== "string" || typeof item.size !== "number") {
+        return { ok: false, error: "Invalid attachment metadata" };
+      }
+      if (item.textContent !== undefined && typeof item.textContent !== "string") {
+        return { ok: false, error: "Invalid attachment textContent" };
+      }
+      if (item.dataUrl !== undefined && typeof item.dataUrl !== "string") {
+        return { ok: false, error: "Invalid attachment dataUrl" };
+      }
+      if (item.note !== undefined && typeof item.note !== "string") {
+        return { ok: false, error: "Invalid attachment note" };
+      }
+    }
   }
 
   if (

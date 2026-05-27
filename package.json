@@ -1,8 +1,8 @@
 {
   "name": "copilot-browser-bridge-vscode",
-  "displayName": "Copilot Browser Bridge",
-  "description": "ブラウザのページ内容をCopilot/ローカルLLMで解析・対話",
-  "version": "0.1.10",
+  "displayName": "GitHub Copilot Browser Bridge",
+  "description": "ブラウザのページ内容をGitHub Copilot/ローカルLLMで解析・対話",
+  "version": "0.1.11",
   "publisher": "yamapan",
   "repository": {
     "type": "git",
@@ -22,15 +22,15 @@
     "commands": [
       {
         "command": "copilotBrowserBridge.startServer",
-        "title": "Copilot Browser Bridge: Start Server"
+        "title": "GitHub Copilot Browser Bridge: Start Server"
       },
       {
         "command": "copilotBrowserBridge.stopServer",
-        "title": "Copilot Browser Bridge: Stop Server"
+        "title": "GitHub Copilot Browser Bridge: Stop Server"
       }
     ],
     "configuration": {
-      "title": "Copilot Browser Bridge",
+      "title": "GitHub Copilot Browser Bridge",
       "properties": {
         "copilotBrowserBridge.serverPort": {
           "type": "number",
@@ -46,6 +46,11 @@
           "type": "boolean",
           "default": true,
           "description": "Allow copilot-agent tool calls to execute terminal commands"
+        },
+        "copilotBrowserBridge.enableCopilotCliFallback": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow GitHub Copilot CLI to be used as a fallback when VS Code language model access is unavailable"
         },
         "copilotBrowserBridge.allowedExtensionOrigins": {
           "type": "array",

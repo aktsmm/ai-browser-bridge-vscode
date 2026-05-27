@@ -112,7 +112,7 @@ export class BridgeServer {
       const onListening = () => {
         activeServer.off("error", onStartupError);
         console.log(
-          `Copilot Browser Bridge: Server listening on http://127.0.0.1:${this.port}`,
+          `GitHub Copilot Browser Bridge: Server listening on http://127.0.0.1:${this.port}`,
         );
         resolve();
       };
@@ -139,7 +139,7 @@ export class BridgeServer {
     if (this.server) {
       this.server.close();
       this.server = null;
-      console.log("Copilot Browser Bridge: Server stopped");
+      console.log("GitHub Copilot Browser Bridge: Server stopped");
     }
   }
 

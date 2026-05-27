@@ -1,5 +1,10 @@
 import * as vscode from "vscode";
 import {
+  buildCopilotCliPrompt,
+  CopilotCliClient,
+  isCopilotCliFallbackEnabled,
+} from "./copilot-cli";
+import {
   isSafeRelativePath,
   toWorkspaceFileUri as toWorkspaceFileUriShared,
 } from "./path-safety";
@@ -26,6 +31,18 @@ export interface ChatRequest {
   pageContent: string;
   screenshot?: string; // Base64 encoded image for Vision API
   operationMode?: "text" | "hybrid" | "screenshot";
+  attachments?: ChatAttachment[];
+}
+
+export interface ChatAttachment {
+  id: string;
+  name: string;
+  kind: "text" | "image" | "pdf";
+  mimeType: string;
+  size: number;
+  textContent?: string;
+  dataUrl?: string;
+  note?: string;
 }
 
 export interface ModelInfo {
@@ -50,6 +67,8 @@ interface ToolResult {
 }
 
 export class LLMRouter {
+  private copilotCliClient = new CopilotCliClient();
+
   private async selectCopilotModels(
     selector: { family?: string } = {},
   ): Promise<vscode.LanguageModelChat[]> {
@@ -133,14 +152,48 @@ export class LLMRouter {
       name: "LM Studio (Local)",
     });
 
+    if (
+      isCopilotCliFallbackEnabled() &&
+      (await this.copilotCliClient.isAvailable())
+    ) {
+      models.push({
+        provider: "copilot-cli",
+        id: "cli-fallback",
+        name: "GitHub Copilot CLI (fallback)",
+      });
+    }
+
     return models;
+  }
+
+  private async *chatWithCopilotCliFallback(
+    systemPrompt: string,
+    messages: ChatMessage[],
+    fallbackMode: "chat" | "agent",
+    abortSignal?: AbortSignal,
+  ): AsyncIterable<string> {
+    if (!isCopilotCliFallbackEnabled()) {
+      throw new Error("GitHub Copilot CLI fallback is disabled");
+    }
+
+    const available = await this.copilotCliClient.isAvailable();
+    if (!available) {
+      throw new Error("GitHub Copilot CLI is not available in this environment");
+    }
+
+    yield "[GitHub Copilot CLI fallback]\n\n";
+    const prompt = buildCopilotCliPrompt(systemPrompt, messages, {
+      fallbackMode,
+    });
+    const response = await this.copilotCliClient.runPrompt(prompt, abortSignal);
+    yield response;
   }
 
   async chat(
     request: ChatRequest,
     abortSignal?: AbortSignal,
   ): Promise<AsyncIterable<string>> {
-    const { settings, messages, pageContent, screenshot } = request;
+    const { settings, messages, pageContent, screenshot, attachments } = request;
 
     // Build system prompt with page content
     const systemPrompt = this.buildSystemPrompt(pageContent);
@@ -151,6 +204,7 @@ export class LLMRouter {
         systemPrompt,
         messages,
         screenshot,
+        attachments,
         abortSignal,
       );
     } else if (settings.provider === "copilot-agent") {
@@ -159,6 +213,7 @@ export class LLMRouter {
         pageContent,
         messages,
         screenshot,
+        attachments,
         abortSignal,
       );
     } else {
@@ -169,6 +224,59 @@ export class LLMRouter {
         abortSignal,
       );
     }
+  }
+
+  private buildAttachmentParts(
+    messageContent: string,
+    attachments: ChatAttachment[] | undefined,
+  ): (vscode.LanguageModelTextPart | vscode.LanguageModelDataPart)[] {
+    const parts: (vscode.LanguageModelTextPart | vscode.LanguageModelDataPart)[] = [
+      new vscode.LanguageModelTextPart(messageContent),
+    ];
+
+    for (const attachment of attachments ?? []) {
+      if (attachment.kind === "text" && attachment.textContent) {
+        parts.push(
+          new vscode.LanguageModelTextPart(
+            `\n\n[TEXT_ATTACHMENT: ${attachment.name}]\n${attachment.textContent}`,
+          ),
+        );
+        continue;
+      }
+
+      if (attachment.kind === "pdf") {
+        parts.push(
+          new vscode.LanguageModelTextPart(
+            `\n\n[PDF_ATTACHMENT: ${attachment.name}]${attachment.note ? ` ${attachment.note}` : ""}`,
+          ),
+        );
+        continue;
+      }
+
+      if (attachment.kind === "image" && attachment.dataUrl) {
+        const commaIndex = attachment.dataUrl.indexOf(",");
+        const base64Data =
+          commaIndex >= 0
+            ? attachment.dataUrl.slice(commaIndex + 1)
+            : attachment.dataUrl;
+        const imageBuffer = Buffer.from(base64Data, "base64");
+        if (imageBuffer.length > 0) {
+          parts.push(
+            new vscode.LanguageModelTextPart(
+              `\n\n[IMAGE_ATTACHMENT: ${attachment.name}]`,
+            ),
+          );
+          parts.push(
+            new vscode.LanguageModelDataPart(
+              new Uint8Array(imageBuffer),
+              attachment.mimeType || "image/png",
+            ),
+          );
+        }
+      }
+    }
+
+    return parts;
   }
 
   private buildSystemPrompt(pageContent: string): string {
@@ -384,6 +492,7 @@ ${pageSection}`;
     systemPrompt: string,
     messages: ChatMessage[],
     screenshot?: string,
+    attachments?: ChatAttachment[],
     abortSignal?: AbortSignal,
   ): AsyncIterable<string> {
     try {
@@ -407,11 +516,12 @@ ${pageSection}`;
       const model = models[0];
 
       if (!model) {
-        yield `エラー: モデル "${modelFamily}" が見つかりません。\n\n利用可能なモデル:\n`;
-        const allModels = await this.selectCopilotModels();
-        for (const m of allModels) {
-          yield `- ${m.family} (${m.id})\n`;
-        }
+        yield* this.chatWithCopilotCliFallback(
+          systemPrompt,
+          messages,
+          "chat",
+          abortSignal,
+        );
         return;
       }
 
@@ -419,14 +529,27 @@ ${pageSection}`;
       yield `[Using: ${model.family}]\n\n`;
 
       // Build messages for Copilot
-      const chatMessages = [
-        vscode.LanguageModelChatMessage.User(systemPrompt),
-        ...messages.map((msg) =>
+      const chatMessages = [vscode.LanguageModelChatMessage.User(systemPrompt)];
+
+      messages.forEach((msg, index) => {
+        const isLatestUserMessage =
+          msg.role === "user" && index === messages.length - 1 && (attachments?.length ?? 0) > 0;
+
+        if (isLatestUserMessage) {
+          chatMessages.push(
+            vscode.LanguageModelChatMessage.User(
+              this.buildAttachmentParts(msg.content, attachments),
+            ),
+          );
+          return;
+        }
+
+        chatMessages.push(
           msg.role === "user"
             ? vscode.LanguageModelChatMessage.User(msg.content)
             : vscode.LanguageModelChatMessage.Assistant(msg.content),
-        ),
-      ];
+        );
+      });
 
       const tokenSource = new vscode.CancellationTokenSource();
       const unbindAbort = this.bindAbortSignal(abortSignal, () => {
@@ -450,12 +573,37 @@ ${pageSection}`;
       if (error instanceof vscode.LanguageModelError) {
         const lmError = error as vscode.LanguageModelError;
         if (lmError.code === "NoPermissions") {
-          yield `エラー: Copilotへのアクセス権限がありません。\n\nVS Codeで以下を実行してください:\n1. Ctrl+Shift+P → "GitHub Copilot: Manage Language Models"\n2. この拡張機能へのアクセスを許可`;
+          try {
+            yield* this.chatWithCopilotCliFallback(
+              systemPrompt,
+              messages,
+              "chat",
+              abortSignal,
+            );
+            return;
+          } catch {
+            yield `エラー: GitHub Copilotへのアクセス権限がありません。\n\nVS Codeで以下を実行してください:\n1. Ctrl+Shift+P → "GitHub Copilot: Manage Language Models"\n2. この拡張機能へのアクセスを許可`;
+          }
         } else {
-          yield `エラー: ${lmError.message} (${lmError.code})`;
+          try {
+            yield* this.chatWithCopilotCliFallback(
+              systemPrompt,
+              messages,
+              "chat",
+              abortSignal,
+            );
+            return;
+          } catch {
+            yield `エラー: ${lmError.message} (${lmError.code})`;
+          }
         }
       } else {
-        throw error;
+        yield* this.chatWithCopilotCliFallback(
+          systemPrompt,
+          messages,
+          "chat",
+          abortSignal,
+        );
       }
     }
   }
@@ -465,6 +613,7 @@ ${pageSection}`;
     pageContent: string,
     messages: ChatMessage[],
     screenshot?: string,
+    attachments?: ChatAttachment[],
     abortSignal?: AbortSignal,
   ): AsyncIterable<string> {
     try {
@@ -489,7 +638,12 @@ ${pageSection}`;
       const model = models[0];
 
       if (!model) {
-        yield "エラー: エージェントモード用のモデルが見つかりません";
+        yield* this.chatWithCopilotCliFallback(
+          this.buildAgentSystemPrompt(pageContent, !!screenshot),
+          messages,
+          "agent",
+          abortSignal,
+        );
         return;
       }
 
@@ -623,7 +777,18 @@ ${pageSection}`;
 
       // Add conversation history
       for (const msg of messages) {
-        if (msg.role === "user") {
+        const isLatestUserMessage =
+          msg.role === "user" &&
+          msg === messages[messages.length - 1] &&
+          (attachments?.length ?? 0) > 0;
+
+        if (isLatestUserMessage) {
+          chatMessages.push(
+            vscode.LanguageModelChatMessage.User(
+              this.buildAttachmentParts(msg.content, attachments),
+            ),
+          );
+        } else if (msg.role === "user") {
           chatMessages.push(vscode.LanguageModelChatMessage.User(msg.content));
         } else {
           chatMessages.push(
@@ -801,6 +966,7 @@ ${pageSection}`;
         this.buildSystemPrompt(pageContent),
         messages,
         undefined,
+        attachments,
         abortSignal,
       )) {
         yield chunk;

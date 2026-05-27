@@ -1,4 +1,4 @@
-# Copilot Browser Bridge for VS Code
+# GitHub Copilot Browser Bridge for VS Code
 
 [![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/yamapan.copilot-browser-bridge-vscode?label=VS%20Code%20Marketplace&logo=visual-studio-code)](https://marketplace.visualstudio.com/items?itemName=yamapan.copilot-browser-bridge-vscode)
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](LICENSE)
@@ -22,7 +22,7 @@ CC BY-NC-SA 4.0 — see [LICENSE](LICENSE).
 code --install-extension yamapan.copilot-browser-bridge-vscode
 ```
 
-Or search for "Copilot Browser Bridge" in VS Code Extensions (`Ctrl+Shift+X`)
+Or search for "GitHub Copilot Browser Bridge" in VS Code Extensions (`Ctrl+Shift+X`)
 
 ### Manual Installation
 
@@ -33,7 +33,7 @@ Or search for "Copilot Browser Bridge" in VS Code Extensions (`Ctrl+Shift+X`)
 ## 📋 Requirements
 
 - **VS Code** 1.90.0 or higher
-- **Chrome Extension**: [Copilot Browser Bridge](https://github.com/aktsmm/copilot-browser-bridge)
+- **Chrome Extension**: [GitHub Copilot Browser Bridge](https://github.com/aktsmm/copilot-browser-bridge)
 - **GitHub Copilot** subscription, or **LM Studio** (Local LLM)
 
 ## 🎮 Usage
@@ -44,8 +44,8 @@ Or search for "Copilot Browser Bridge" in VS Code Extensions (`Ctrl+Shift+X`)
 
 ### Commands
 
-- `Copilot Browser Bridge: Start Server` - Manually start the server
-- `Copilot Browser Bridge: Stop Server` - Stop the server
+- `GitHub Copilot Browser Bridge: Start Server` - Manually start the server
+- `GitHub Copilot Browser Bridge: Stop Server` - Stop the server
 
 ## ⚙️ Settings
 
@@ -54,7 +54,14 @@ Or search for "Copilot Browser Bridge" in VS Code Extensions (`Ctrl+Shift+X`)
 | `copilotBrowserBridge.serverPort`              | 3210    | Local server port number                         |
 | `copilotBrowserBridge.autoStart`               | true    | Auto-start server on VS Code launch              |
 | `copilotBrowserBridge.enableAgentTerminalTool` | true    | Allow agent `run_terminal` tool execution        |
+| `copilotBrowserBridge.enableCopilotCliFallback` | true   | Allow GitHub Copilot CLI fallback when VS Code model access is unavailable |
 | `copilotBrowserBridge.allowedExtensionOrigins` | []      | Additional allowed `chrome-extension://` origins |
+
+### Bridge behavior
+
+- The Chrome side can now save generated Markdown to a workspace-relative path through the VS Code bridge
+- If workspace-relative save is requested without an open workspace, the Chrome extension falls back to browser downloads
+- GitHub Copilot CLI can be used as a fallback response path when VS Code language model access is unavailable
 
 ## 🔧 Development
 
@@ -88,7 +95,7 @@ CC BY-NC-SA 4.0 © [aktsmm](https://github.com/aktsmm)
 
 ## 🔗 Related Projects
 
-- [Copilot Browser Bridge (Chrome Extension)](https://github.com/aktsmm/copilot-browser-bridge)
+- [GitHub Copilot Browser Bridge (Chrome Extension)](https://github.com/aktsmm/copilot-browser-bridge)
 
 ## 👤 Author
 
