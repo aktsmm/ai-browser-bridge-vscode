@@ -971,7 +971,7 @@ ${pageSection}`;
   private isAgentTerminalToolEnabled(): boolean {
     return vscode.workspace
       .getConfiguration("copilotBrowserBridge")
-      .get<boolean>("enableAgentTerminalTool", false);
+      .get<boolean>("enableAgentTerminalTool", true);
   }
 
   private toWorkspaceFileUri(relativePath: unknown): vscode.Uri | null {

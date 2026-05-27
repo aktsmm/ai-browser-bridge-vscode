@@ -6,5 +6,7 @@ eslint.config.mjs
 tsconfig.json
 .gitignore
 *.vsix
+vsce-show.json
+npm-audit.json
 
 *.log

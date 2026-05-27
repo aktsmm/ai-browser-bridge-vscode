@@ -53,7 +53,7 @@ Or search for "Copilot Browser Bridge" in VS Code Extensions (`Ctrl+Shift+X`)
 | ---------------------------------------------- | ------- | ------------------------------------------------ |
 | `copilotBrowserBridge.serverPort`              | 3210    | Local server port number                         |
 | `copilotBrowserBridge.autoStart`               | true    | Auto-start server on VS Code launch              |
-| `copilotBrowserBridge.enableAgentTerminalTool` | false   | Allow agent `run_terminal` tool execution        |
+| `copilotBrowserBridge.enableAgentTerminalTool` | true    | Allow agent `run_terminal` tool execution        |
 | `copilotBrowserBridge.allowedExtensionOrigins` | []      | Additional allowed `chrome-extension://` origins |
 
 ## 🔧 Development
