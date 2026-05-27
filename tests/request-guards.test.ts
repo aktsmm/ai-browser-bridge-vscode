@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_ALLOWED_EXTENSION_ORIGINS,
   hasTrustedBridgeClientHeader,
+  isAllowedPlaywrightAction,
   isAllowedExtensionOrigin,
   MAX_PAGE_CONTENT_LENGTH,
   normalizeAllowedExtensionOrigins,
@@ -75,5 +76,11 @@ describe("request guards", () => {
       ok: true,
       value: request,
     });
+  });
+
+  it("accepts only known playwright actions", () => {
+    expect(isAllowedPlaywrightAction("browser_click")).toBe(true);
+    expect(isAllowedPlaywrightAction("browser_tabs")).toBe(true);
+    expect(isAllowedPlaywrightAction("browser_delete_everything")).toBe(false);
   });
 });

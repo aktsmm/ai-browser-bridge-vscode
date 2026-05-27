@@ -10,7 +10,29 @@ export const DEFAULT_ALLOWED_EXTENSION_ORIGINS = [
 
 export const MAX_PAGE_CONTENT_LENGTH = 50_000;
 
+export const PLAYWRIGHT_MCP_TOOL_MAP = {
+  browser_click: "mcp_playwright_browser_click",
+  browser_type: "mcp_playwright_browser_type",
+  browser_navigate: "mcp_playwright_browser_navigate",
+  browser_navigate_back: "mcp_playwright_browser_navigate_back",
+  browser_snapshot: "mcp_playwright_browser_snapshot",
+  browser_drag: "mcp_playwright_browser_drag",
+  browser_hover: "mcp_playwright_browser_hover",
+  browser_select_option: "mcp_playwright_browser_select_option",
+  browser_fill_form: "mcp_playwright_browser_fill_form",
+  browser_evaluate: "mcp_playwright_browser_evaluate",
+  browser_wait_for: "mcp_playwright_browser_wait_for",
+  browser_press_key: "mcp_playwright_browser_press_key",
+  browser_tabs: "mcp_playwright_browser_tabs",
+  browser_take_screenshot: "mcp_playwright_browser_take_screenshot",
+  browser_close: "mcp_playwright_browser_close",
+} as const;
+
 const ALLOWED_EXTENSION_ORIGIN_PATTERN = /^chrome-extension:\/\/[a-p]{32}$/;
+
+export function isAllowedPlaywrightAction(action: string): boolean {
+  return action in PLAYWRIGHT_MCP_TOOL_MAP;
+}
 
 export function normalizeAllowedExtensionOrigins(
   configuredOrigins: string[],

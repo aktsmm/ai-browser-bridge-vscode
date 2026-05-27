@@ -4,7 +4,9 @@ import { LLMRouter, ChatRequest } from "./llm-router";
 import { isSafeRelativePath, toWorkspaceFileUri } from "./path-safety";
 import {
   hasTrustedBridgeClientHeader,
+  isAllowedPlaywrightAction,
   isAllowedExtensionOrigin,
+  PLAYWRIGHT_MCP_TOOL_MAP,
   validateChatRequestBody,
 } from "./request-guards";
 
@@ -354,6 +356,10 @@ export class BridgeServer {
       return { ok: false, error: "Invalid playwright action" };
     }
 
+    if (!isAllowedPlaywrightAction(action)) {
+      return { ok: false, error: `Unknown playwright action: ${action}` };
+    }
+
     const params = body.params;
     if (
       params !== undefined &&
@@ -688,26 +694,8 @@ export class BridgeServer {
     error?: string;
     data?: unknown;
   }> {
-    // Map action names to MCP tool names
-    const mcpToolMap: Record<string, string> = {
-      browser_click: "mcp_playwright_browser_click",
-      browser_type: "mcp_playwright_browser_type",
-      browser_navigate: "mcp_playwright_browser_navigate",
-      browser_navigate_back: "mcp_playwright_browser_navigate_back",
-      browser_snapshot: "mcp_playwright_browser_snapshot",
-      browser_drag: "mcp_playwright_browser_drag",
-      browser_hover: "mcp_playwright_browser_hover",
-      browser_select_option: "mcp_playwright_browser_select_option",
-      browser_fill_form: "mcp_playwright_browser_fill_form",
-      browser_evaluate: "mcp_playwright_browser_evaluate",
-      browser_wait_for: "mcp_playwright_browser_wait_for",
-      browser_press_key: "mcp_playwright_browser_press_key",
-      browser_tabs: "mcp_playwright_browser_tabs",
-      browser_take_screenshot: "mcp_playwright_browser_take_screenshot",
-      browser_close: "mcp_playwright_browser_close",
-    };
-
-    const mcpTool = mcpToolMap[action];
+    const mcpTool =
+      PLAYWRIGHT_MCP_TOOL_MAP[action as keyof typeof PLAYWRIGHT_MCP_TOOL_MAP];
     if (!mcpTool) {
       return {
         success: false,
