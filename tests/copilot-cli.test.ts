@@ -11,6 +11,7 @@ vi.mock("vscode", () => ({
 import {
   buildCopilotCliPrompt,
   buildCopilotCliSpawnSpec,
+  CopilotCliClient,
 } from "../src/copilot-cli";
 
 describe("copilot CLI helper", () => {
@@ -48,5 +49,17 @@ describe("copilot CLI helper", () => {
       command: "pwsh",
       argsPrefix: ["-NoProfile", "-File", "C:\\tooling\\copilot.ps1"],
     });
+  });
+
+  it("rejects immediately without spawning when the signal is already aborted", async () => {
+    // An already-aborted request must not spawn a doomed child process that
+    // would only be reaped on timeout.
+    const controller = new AbortController();
+    controller.abort();
+
+    const client = new CopilotCliClient();
+    await expect(client.runPrompt("hello", controller.signal)).rejects.toThrow(
+      /aborted/i,
+    );
   });
 });

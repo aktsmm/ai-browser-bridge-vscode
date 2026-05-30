@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_ALLOWED_EXTENSION_ORIGINS,
+  evaluateBridgeRequestGate,
   hasTrustedBridgeClientHeader,
   isAllowedLmStudioEndpoint,
   isAllowedPlaywrightAction,
@@ -43,6 +44,35 @@ describe("request guards", () => {
       true,
     );
     expect(hasTrustedBridgeClientHeader("web")).toBe(false);
+  });
+
+  it("authorizes non-health requests by trusted client header, not Origin", () => {
+    // Health check is always unauthenticated.
+    expect(
+      evaluateBridgeRequestGate({
+        isHealthCheck: true,
+        hasTrustedClient: false,
+      }),
+    ).toEqual({ ok: true });
+
+    // Trusted client header present (no Origin needed) -> accepted.
+    // Chrome omits the Origin header when fetching a host the extension already
+    // has host_permissions for (the local bridge), so requiring Origin would
+    // break the side panel.
+    expect(
+      evaluateBridgeRequestGate({
+        isHealthCheck: false,
+        hasTrustedClient: true,
+      }),
+    ).toEqual({ ok: true });
+
+    // Missing trusted client header on a protected route -> 401.
+    expect(
+      evaluateBridgeRequestGate({
+        isHealthCheck: false,
+        hasTrustedClient: false,
+      }),
+    ).toEqual({ ok: false, status: 401, error: "Unauthorized client" });
   });
 
   it("rejects oversized chat requests", () => {
@@ -147,13 +177,16 @@ describe("request guards", () => {
       },
       messages: [{ role: "user", content: "Hello" }],
       pageContent: "short page",
-      attachments: Array.from({ length: MAX_ATTACHMENT_COUNT + 1 }, (_, index) => ({
-        id: String(index),
-        name: `file-${index}.md`,
-        kind: "text",
-        mimeType: "text/markdown",
-        size: 10,
-      })),
+      attachments: Array.from(
+        { length: MAX_ATTACHMENT_COUNT + 1 },
+        (_, index) => ({
+          id: String(index),
+          name: `file-${index}.md`,
+          kind: "text",
+          mimeType: "text/markdown",
+          size: 10,
+        }),
+      ),
     };
 
     expect(validateChatRequestBody(request)).toEqual({

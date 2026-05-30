@@ -52,13 +52,13 @@ code --install-extension yamapan.copilot-browser-bridge-vscode
 
 ## ⚙️ 設定
 
-| 設定                                           | デフォルト | 説明                                          |
-| ---------------------------------------------- | ---------- | --------------------------------------------- |
-| `copilotBrowserBridge.serverPort`              | 3210       | ローカルサーバーのポート番号                  |
-| `copilotBrowserBridge.autoStart`               | true       | VS Code起動時に自動でサーバーを開始           |
-| `copilotBrowserBridge.enableAgentTerminalTool` | false      | エージェントの `run_terminal` 実行を限定的な read-only コマンドに対してのみ許可 |
-| `copilotBrowserBridge.enableCopilotCliFallback` | true      | VS Code のモデルアクセスが使えない場合に GitHub Copilot CLI fallback を許可 |
-| `copilotBrowserBridge.allowedExtensionOrigins` | []         | 追加で許可する `chrome-extension://` オリジン |
+| 設定                                            | デフォルト | 説明                                                                                 |
+| ----------------------------------------------- | ---------- | ------------------------------------------------------------------------------------ |
+| `copilotBrowserBridge.serverPort`               | 3210       | ローカルサーバーのポート番号                                                         |
+| `copilotBrowserBridge.autoStart`                | true       | VS Code起動時に自動でサーバーを開始                                                  |
+| `copilotBrowserBridge.enableAgentTerminalTool`  | false      | エージェントの `run_terminal` 実行を限定的な read-only コマンドに対してのみ許可      |
+| `copilotBrowserBridge.enableCopilotCliFallback` | true       | VS Code のモデルアクセスが使えない場合に GitHub Copilot CLI fallback を許可          |
+| `copilotBrowserBridge.allowedExtensionOrigins`  | []         | 追加で許可する `chrome-extension://` オリジン（`Origin` ヘッダーがある場合のみ適用） |
 
 ### Bridge の挙動
 
@@ -66,6 +66,11 @@ code --install-extension yamapan.copilot-browser-bridge-vscode
 - workspace 相対保存を要求しても workspace が未オープンなら、Chrome 拡張はブラウザのダウンロードへフォールバックします
 - VS Code の language model access が使えない場合、GitHub Copilot CLI を fallback 応答経路として利用できます
 - LM Studio の endpoint は安全のため localhost / loopback アドレスのみに制限されます
+
+### リクエスト認可モデル
+
+- サーバーは `127.0.0.1` のみで listen し、保護ルートは `X-Copilot-Bridge-Client: chrome-extension` ヘッダーで認可します。クロスサイトのページはこのカスタムヘッダーを CORS preflight なしに付与できず、preflight は許可された拡張オリジンのみ通過します。
+- `Origin` ヘッダーは**必須ではありません**。Chrome は拡張が既に `host_permissions` を持つホスト（ローカル bridge）へ fetch する際 `Origin` を送らないため、必須化するとサイドパネルが壊れます。`Origin` ヘッダーが付く場合のみ、公式ストアオリジンか `allowedExtensionOrigins` のいずれかと一致する必要があります。
 
 ## 🔧 開発
 

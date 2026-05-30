@@ -6,6 +6,7 @@ import {
   hasTrustedBridgeClientHeader,
   isAllowedPlaywrightAction,
   isAllowedExtensionOrigin,
+  evaluateBridgeRequestGate,
   PLAYWRIGHT_MCP_TOOL_MAP,
   validateChatRequestBody,
 } from "./request-guards";
@@ -47,6 +48,7 @@ export class BridgeServer {
       );
 
       if (req.method === "OPTIONS") {
+        res.setHeader("Access-Control-Max-Age", "600");
         res.writeHead(204);
         res.end();
         return;
@@ -63,15 +65,13 @@ export class BridgeServer {
 
       const isHealthCheck = url.pathname === "/health" && req.method === "GET";
 
-      if (!isHealthCheck && !requestOrigin) {
-        res.writeHead(403, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Origin header is required" }));
-        return;
-      }
-
-      if (!isHealthCheck && !this.hasTrustedClientHeader(req)) {
-        res.writeHead(401, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Unauthorized client" }));
+      const gate = evaluateBridgeRequestGate({
+        isHealthCheck,
+        hasTrustedClient: this.hasTrustedClientHeader(req),
+      });
+      if (!gate.ok) {
+        res.writeHead(gate.status, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: gate.error }));
         return;
       }
 

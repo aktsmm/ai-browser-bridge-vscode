@@ -78,6 +78,13 @@ function runCliCommand(
   abortSignal?: AbortSignal,
 ): Promise<{ stdout: string; stderr: string; exitCode: number | null }> {
   return new Promise((resolve, reject) => {
+    // If the request was already aborted before we got here, do not spawn a
+    // doomed child process that would only be reaped on timeout.
+    if (abortSignal?.aborted) {
+      reject(new Error("GitHub Copilot CLI request aborted"));
+      return;
+    }
+
     const spawnSpec = buildCopilotCliSpawnSpec(
       resolveCopilotCliCommand(),
       process.platform,
@@ -91,12 +98,11 @@ function runCliCommand(
     let stderr = "";
     let settled = false;
 
-    const finish = (callback: () => void) => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      callback();
+    const abortHandler = () => {
+      finish(() => {
+        child.kill();
+        reject(new Error("GitHub Copilot CLI request aborted"));
+      });
     };
 
     const timeout = setTimeout(() => {
@@ -110,12 +116,16 @@ function runCliCommand(
       });
     }, COPILOT_CLI_TIMEOUT_MS);
 
-    const abortHandler = () => {
-      finish(() => {
-        clearTimeout(timeout);
-        child.kill();
-        reject(new Error("GitHub Copilot CLI request aborted"));
-      });
+    // Centralized cleanup so every settle path clears the timer and detaches
+    // the abort listener (otherwise the listener lingers on normal completion).
+    const finish = (callback: () => void) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimeout(timeout);
+      abortSignal?.removeEventListener("abort", abortHandler);
+      callback();
     };
 
     abortSignal?.addEventListener("abort", abortHandler, { once: true });
@@ -130,14 +140,12 @@ function runCliCommand(
 
     child.on("error", (error) => {
       finish(() => {
-        clearTimeout(timeout);
         reject(error);
       });
     });
 
     child.on("close", (exitCode) => {
       finish(() => {
-        clearTimeout(timeout);
         resolve({ stdout, stderr, exitCode });
       });
     });

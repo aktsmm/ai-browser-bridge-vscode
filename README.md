@@ -49,13 +49,13 @@ Or search for "GitHub Copilot Browser Bridge" in VS Code Extensions (`Ctrl+Shift
 
 ## ⚙️ Settings
 
-| Setting                                        | Default | Description                                      |
-| ---------------------------------------------- | ------- | ------------------------------------------------ |
-| `copilotBrowserBridge.serverPort`              | 3210    | Local server port number                         |
-| `copilotBrowserBridge.autoStart`               | true    | Auto-start server on VS Code launch              |
-| `copilotBrowserBridge.enableAgentTerminalTool` | false   | Allow a small read-only subset of agent `run_terminal` commands |
-| `copilotBrowserBridge.enableCopilotCliFallback` | true   | Allow GitHub Copilot CLI fallback when VS Code model access is unavailable |
-| `copilotBrowserBridge.allowedExtensionOrigins` | []      | Additional allowed `chrome-extension://` origins |
+| Setting                                         | Default | Description                                                                                         |
+| ----------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------- |
+| `copilotBrowserBridge.serverPort`               | 3210    | Local server port number                                                                            |
+| `copilotBrowserBridge.autoStart`                | true    | Auto-start server on VS Code launch                                                                 |
+| `copilotBrowserBridge.enableAgentTerminalTool`  | false   | Allow a small read-only subset of agent `run_terminal` commands                                     |
+| `copilotBrowserBridge.enableCopilotCliFallback` | true    | Allow GitHub Copilot CLI fallback when VS Code model access is unavailable                          |
+| `copilotBrowserBridge.allowedExtensionOrigins`  | []      | Additional allowed `chrome-extension://` origins (only enforced when an `Origin` header is present) |
 
 ### Bridge behavior
 
@@ -63,6 +63,11 @@ Or search for "GitHub Copilot Browser Bridge" in VS Code Extensions (`Ctrl+Shift
 - If workspace-relative save is requested without an open workspace, the Chrome extension falls back to browser downloads
 - GitHub Copilot CLI can be used as a fallback response path when VS Code language model access is unavailable
 - LM Studio endpoints are restricted to localhost / loopback addresses for safety
+
+### Request authorization model
+
+- The server binds to `127.0.0.1` only and authorizes protected routes via the `X-Copilot-Bridge-Client: chrome-extension` header. A cross-site page cannot set this custom header without a CORS preflight, which only allowed extension origins pass.
+- An `Origin` header is **not** required: Chrome omits it when the extension fetches a host it already holds `host_permissions` for (the local bridge), so requiring it would break the side panel. When an `Origin` header _is_ present, it must match the official store origin or one of `allowedExtensionOrigins`.
 
 ## 🔧 Development
 

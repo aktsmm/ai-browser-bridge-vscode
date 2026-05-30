@@ -85,6 +85,39 @@ export function hasTrustedBridgeClientHeader(
   return clientValue === "chrome-extension";
 }
 
+export interface BridgeRequestGateInput {
+  isHealthCheck: boolean;
+  hasTrustedClient: boolean;
+}
+
+export type BridgeRequestGateDecision =
+  | { ok: true }
+  | { ok: false; status: 401; error: string };
+
+/**
+ * Authorization gate applied after the origin/CORS checks.
+ *
+ * The trusted client header is the primary CSRF gate: a cross-site web page
+ * cannot set the custom `X-Copilot-Bridge-Client` header without a CORS
+ * preflight that the server only approves for allowed extension origins.
+ * The Origin header itself is intentionally NOT required, because Chrome omits
+ * it when the extension fetches a host it already has `host_permissions` for
+ * (e.g. the local bridge on `localhost`). Requiring it broke the side panel.
+ */
+export function evaluateBridgeRequestGate(
+  input: BridgeRequestGateInput,
+): BridgeRequestGateDecision {
+  if (input.isHealthCheck) {
+    return { ok: true };
+  }
+
+  if (!input.hasTrustedClient) {
+    return { ok: false, status: 401, error: "Unauthorized client" };
+  }
+
+  return { ok: true };
+}
+
 export function validateChatRequestBody(
   request: unknown,
   maxPageContentLength = MAX_PAGE_CONTENT_LENGTH,
@@ -207,7 +240,10 @@ export function validateChatRequestBody(
       if (typeof item.mimeType !== "string" || typeof item.size !== "number") {
         return { ok: false, error: "Invalid attachment metadata" };
       }
-      if (item.textContent !== undefined && typeof item.textContent !== "string") {
+      if (
+        item.textContent !== undefined &&
+        typeof item.textContent !== "string"
+      ) {
         return { ok: false, error: "Invalid attachment textContent" };
       }
       if (item.dataUrl !== undefined && typeof item.dataUrl !== "string") {
