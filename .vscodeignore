@@ -4,6 +4,14 @@ tests/**
 out/*.d.ts
 out/**/*.d.ts
 out/**/*.map
+**/*.d.ts
+**/*.d.ts.map
+**/*.map
+**/*.pdb
+node_modules/**/src/**
+node_modules/**/test/**
+node_modules/**/tests/**
+node_modules/**/benchmarks/**
 eslint.config.mjs
 tsconfig.json
 .gitignore

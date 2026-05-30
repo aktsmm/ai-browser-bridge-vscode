@@ -52,9 +52,181 @@ export const PLAYWRIGHT_MCP_TOOL_MAP = {
 } as const;
 
 const ALLOWED_EXTENSION_ORIGIN_PATTERN = /^chrome-extension:\/\/[a-p]{32}$/;
+const MAX_PLAYWRIGHT_SELECTOR_LENGTH = 5_000;
+const MAX_PLAYWRIGHT_TEXT_LENGTH = 20_000;
+const MAX_PLAYWRIGHT_KEY_LENGTH = 100;
+const MAX_PLAYWRIGHT_RAW_LENGTH = 10_000;
+const MAX_PLAYWRIGHT_OPTION_VALUE_LENGTH = 1_000;
+const MAX_PLAYWRIGHT_FORM_FIELDS = 50;
 
 export function isAllowedPlaywrightAction(action: string): boolean {
   return action in PLAYWRIGHT_MCP_TOOL_MAP;
+}
+
+function isSafeBrowserNavigationUrl(rawUrl: string): boolean {
+  const trimmed = rawUrl.trim();
+  if (trimmed === "about:blank") {
+    return true;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+export function validatePlaywrightParams(
+  action: string,
+  params: Record<string, unknown>,
+): ValidationResult<Record<string, unknown>> {
+  if (action === "browser_evaluate") {
+    return {
+      ok: false,
+      error: "browser_evaluate is blocked by the VS Code bridge",
+    };
+  }
+
+  if (action === "browser_navigate") {
+    if (
+      typeof params.url !== "string" ||
+      !isSafeBrowserNavigationUrl(params.url)
+    ) {
+      return {
+        ok: false,
+        error: "browser_navigate requires a safe http(s) URL",
+      };
+    }
+  }
+
+  if (action === "browser_tabs") {
+    const tabAction =
+      typeof params.action === "string" ? params.action.trim() : "";
+    const tabUrl = typeof params.url === "string" ? params.url.trim() : "";
+    if (
+      tabAction === "new" &&
+      tabUrl.length > 0 &&
+      !isSafeBrowserNavigationUrl(tabUrl)
+    ) {
+      return {
+        ok: false,
+        error: "browser_tabs new URL must be http(s) or about:blank",
+      };
+    }
+  }
+
+  const stringFieldChecks: Array<[string, number]> = [
+    ["selector", MAX_PLAYWRIGHT_SELECTOR_LENGTH],
+    ["startSelector", MAX_PLAYWRIGHT_SELECTOR_LENGTH],
+    ["endSelector", MAX_PLAYWRIGHT_SELECTOR_LENGTH],
+    ["element", MAX_PLAYWRIGHT_SELECTOR_LENGTH],
+    ["ref", MAX_PLAYWRIGHT_SELECTOR_LENGTH],
+    ["text", MAX_PLAYWRIGHT_TEXT_LENGTH],
+    ["value", MAX_PLAYWRIGHT_TEXT_LENGTH],
+    ["raw", MAX_PLAYWRIGHT_RAW_LENGTH],
+  ];
+
+  for (const [field, maxLength] of stringFieldChecks) {
+    const value = params[field];
+    if (value !== undefined) {
+      if (typeof value !== "string" || value.length > maxLength) {
+        return {
+          ok: false,
+          error: `${field} must be a string <= ${maxLength} chars`,
+        };
+      }
+    }
+  }
+
+  if (action === "browser_press_key") {
+    if (
+      typeof params.key !== "string" ||
+      params.key.trim().length === 0 ||
+      params.key.length > MAX_PLAYWRIGHT_KEY_LENGTH
+    ) {
+      return {
+        ok: false,
+        error: `browser_press_key key must be a non-empty string <= ${MAX_PLAYWRIGHT_KEY_LENGTH} chars`,
+      };
+    }
+  }
+
+  if (action === "browser_fill_form" && params.fields !== undefined) {
+    if (
+      !Array.isArray(params.fields) ||
+      params.fields.length > MAX_PLAYWRIGHT_FORM_FIELDS
+    ) {
+      return {
+        ok: false,
+        error: `browser_fill_form fields must be an array of <= ${MAX_PLAYWRIGHT_FORM_FIELDS} items`,
+      };
+    }
+
+    for (const field of params.fields) {
+      if (!field || typeof field !== "object" || Array.isArray(field)) {
+        return {
+          ok: false,
+          error: "browser_fill_form field must be an object",
+        };
+      }
+      const record = field as Record<string, unknown>;
+      for (const key of ["name", "ref", "type", "value"] as const) {
+        const value = record[key];
+        if (
+          value !== undefined &&
+          (typeof value !== "string" ||
+            value.length > MAX_PLAYWRIGHT_TEXT_LENGTH)
+        ) {
+          return {
+            ok: false,
+            error: `browser_fill_form field ${key} must be a string <= ${MAX_PLAYWRIGHT_TEXT_LENGTH} chars`,
+          };
+        }
+      }
+    }
+  }
+
+  if (action === "browser_select_option") {
+    const value = params.value;
+    if (
+      value !== undefined &&
+      (typeof value !== "string" ||
+        value.length > MAX_PLAYWRIGHT_OPTION_VALUE_LENGTH)
+    ) {
+      return {
+        ok: false,
+        error: `browser_select_option value must be a string <= ${MAX_PLAYWRIGHT_OPTION_VALUE_LENGTH} chars`,
+      };
+    }
+
+    const values = params.values;
+    if (values !== undefined) {
+      if (
+        !Array.isArray(values) ||
+        values.length > MAX_PLAYWRIGHT_FORM_FIELDS
+      ) {
+        return {
+          ok: false,
+          error: `browser_select_option values must be an array of <= ${MAX_PLAYWRIGHT_FORM_FIELDS} items`,
+        };
+      }
+      if (
+        !values.every(
+          (item) =>
+            typeof item === "string" &&
+            item.length <= MAX_PLAYWRIGHT_OPTION_VALUE_LENGTH,
+        )
+      ) {
+        return {
+          ok: false,
+          error: `browser_select_option values must be strings <= ${MAX_PLAYWRIGHT_OPTION_VALUE_LENGTH} chars`,
+        };
+      }
+    }
+  }
+
+  return { ok: true, value: params };
 }
 
 export function normalizeAllowedExtensionOrigins(
@@ -134,12 +306,24 @@ export function validateChatRequestBody(
   }
 
   const provider = settings.provider;
-  const allowedProviders = ["copilot", "copilot-agent", "lm-studio"];
+  const allowedProviders = [
+    "auto",
+    "copilot",
+    "copilot-agent",
+    "copilot-sdk",
+    "copilot-cli",
+    "lm-studio",
+  ];
   if (typeof provider !== "string" || !allowedProviders.includes(provider)) {
     return { ok: false, error: "Invalid provider" };
   }
 
-  if (provider === "copilot" || provider === "copilot-agent") {
+  if (
+    provider === "auto" ||
+    provider === "copilot" ||
+    provider === "copilot-agent" ||
+    provider === "copilot-sdk"
+  ) {
     const copilotSettings = settings.copilot as Record<string, unknown>;
     if (
       !copilotSettings ||

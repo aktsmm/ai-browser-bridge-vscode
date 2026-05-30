@@ -4,6 +4,7 @@ import {
   CopilotCliClient,
   isCopilotCliFallbackEnabled,
 } from "./copilot-cli";
+import { buildCopilotSdkPrompt, CopilotSdkClient } from "./copilot-sdk";
 import { isAllowedLmStudioEndpoint } from "./request-guards";
 import { validateTerminalCommand } from "./terminal-command-policy";
 import {
@@ -12,7 +13,13 @@ import {
 } from "./path-safety";
 
 export interface LLMSettings {
-  provider: "copilot" | "copilot-agent" | "lm-studio";
+  provider:
+    | "auto"
+    | "copilot"
+    | "copilot-agent"
+    | "copilot-sdk"
+    | "copilot-cli"
+    | "lm-studio";
   copilot: {
     model: string;
   };
@@ -53,8 +60,28 @@ export interface ModelInfo {
   name: string;
 }
 
+export interface ProviderCapability {
+  id: "vscode-lm" | "copilot-sdk" | "copilot-cli" | "lm-studio";
+  name: string;
+  status: "available" | "unavailable" | "unknown";
+  detail?: string;
+  models?: ModelInfo[];
+}
+
+type AutoProviderId = "vscode-lm" | "copilot-sdk" | "copilot-cli";
+
 const COPILOT_MODEL_FETCH_RETRY_COUNT = 3;
 const COPILOT_MODEL_FETCH_RETRY_DELAY_MS = 150;
+
+export function getAutoProviderOrder(
+  operationMode: ChatRequest["operationMode"] | undefined,
+): AutoProviderId[] {
+  if (operationMode === "text") {
+    return ["vscode-lm", "copilot-sdk", "copilot-cli"];
+  }
+
+  return ["copilot-sdk", "vscode-lm", "copilot-cli"];
+}
 
 export function isUserVisibleCopilotModel(model: {
   family?: string;
@@ -92,6 +119,7 @@ interface ToolResult {
 
 export class LLMRouter {
   private copilotCliClient = new CopilotCliClient();
+  private copilotSdkClient = new CopilotSdkClient();
 
   private async selectCopilotModels(
     selector: { family?: string } = {},
@@ -175,6 +203,12 @@ export class LLMRouter {
 
     // LM Studio models would be fetched from endpoint
     models.push({
+      provider: "copilot-sdk",
+      id: "sdk-agent",
+      name: "GitHub Copilot SDK (Agent)",
+    });
+
+    models.push({
       provider: "lm-studio",
       id: "local",
       name: "LM Studio (Local)",
@@ -194,13 +228,85 @@ export class LLMRouter {
     return models;
   }
 
+  async getProviderCapabilities(): Promise<ProviderCapability[]> {
+    const capabilities: ProviderCapability[] = [];
+
+    try {
+      const copilotModels = await this.selectCopilotModels();
+      capabilities.push({
+        id: "vscode-lm",
+        name: "VS Code Language Model API",
+        status: copilotModels.length > 0 ? "available" : "unavailable",
+        detail:
+          copilotModels.length > 0
+            ? undefined
+            : "No user-visible Copilot language models were returned.",
+        models: copilotModels
+          .filter(isUserVisibleCopilotModel)
+          .map((model) => ({
+            provider: "copilot",
+            id: model.family,
+            name: `${model.name} (${model.family})`,
+          })),
+      });
+    } catch (error) {
+      capabilities.push({
+        id: "vscode-lm",
+        name: "VS Code Language Model API",
+        status: "unavailable",
+        detail: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    const copilotSdkAvailable = await this.copilotSdkClient.isAvailable();
+    capabilities.push({
+      id: "copilot-sdk",
+      name: "GitHub Copilot SDK",
+      status: copilotSdkAvailable ? "available" : "unavailable",
+      detail: copilotSdkAvailable
+        ? "Runtime authentication is checked on first SDK request."
+        : "@github/copilot-sdk could not be loaded by the bridge process.",
+    });
+
+    const copilotCliFallbackEnabled = isCopilotCliFallbackEnabled();
+    const copilotCliAvailable = copilotCliFallbackEnabled
+      ? await this.copilotCliClient.isAvailable()
+      : false;
+    capabilities.push({
+      id: "copilot-cli",
+      name: "GitHub Copilot CLI",
+      status: copilotCliAvailable ? "available" : "unavailable",
+      detail: copilotCliFallbackEnabled
+        ? copilotCliAvailable
+          ? undefined
+          : "Copilot CLI command was not available to the bridge process."
+        : "Copilot CLI fallback is disabled in VS Code settings.",
+    });
+
+    capabilities.push({
+      id: "lm-studio",
+      name: "LM Studio",
+      status: "unknown",
+      detail: "Endpoint health depends on the side panel LM Studio settings.",
+    });
+
+    return capabilities;
+  }
+
+  private resolveCopilotFallbackMode(
+    operationMode: ChatRequest["operationMode"] | undefined,
+  ): "chat" | "agent" {
+    return operationMode === "text" ? "chat" : "agent";
+  }
+
   private async *chatWithCopilotCliFallback(
     systemPrompt: string,
     messages: ChatMessage[],
     fallbackMode: "chat" | "agent",
+    requireFallbackEnabled = true,
     abortSignal?: AbortSignal,
   ): AsyncIterable<string> {
-    if (!isCopilotCliFallbackEnabled()) {
+    if (requireFallbackEnabled && !isCopilotCliFallbackEnabled()) {
       throw new Error("GitHub Copilot CLI fallback is disabled");
     }
 
@@ -219,6 +325,98 @@ export class LLMRouter {
     yield response;
   }
 
+  private async *chatWithCopilotSdk(
+    modelFamily: string,
+    systemPrompt: string,
+    messages: ChatMessage[],
+    fallbackMode: "chat" | "agent",
+    abortSignal?: AbortSignal,
+  ): AsyncIterable<string> {
+    yield "[GitHub Copilot SDK]\n\n";
+    const prompt = buildCopilotSdkPrompt(systemPrompt, messages, {
+      agentMode: fallbackMode === "agent",
+    });
+    const response = await this.copilotSdkClient.runPrompt(
+      prompt,
+      modelFamily,
+      abortSignal,
+    );
+    yield response;
+  }
+
+  private async *chatWithAuto(
+    request: ChatRequest,
+    systemPrompt: string,
+    abortSignal?: AbortSignal,
+  ): AsyncIterable<string> {
+    const { settings, messages, pageContent, screenshot, attachments } =
+      request;
+    const fallbackMode = this.resolveCopilotFallbackMode(request.operationMode);
+    const order = getAutoProviderOrder(request.operationMode);
+    const failures: string[] = [];
+
+    for (const provider of order) {
+      try {
+        if (provider === "copilot-sdk") {
+          yield* this.chatWithCopilotSdk(
+            settings.copilot.model,
+            fallbackMode === "agent"
+              ? this.buildAgentSystemPrompt(pageContent, !!screenshot)
+              : systemPrompt,
+            messages,
+            fallbackMode,
+            abortSignal,
+          );
+          return;
+        }
+
+        if (provider === "vscode-lm") {
+          if (fallbackMode === "agent") {
+            yield* this.chatWithCopilotAgent(
+              settings.copilot.model,
+              pageContent,
+              messages,
+              screenshot,
+              attachments,
+              abortSignal,
+              false,
+            );
+          } else {
+            yield* this.chatWithCopilot(
+              settings.copilot.model,
+              systemPrompt,
+              messages,
+              screenshot,
+              attachments,
+              abortSignal,
+              false,
+            );
+          }
+          return;
+        }
+
+        yield* this.chatWithCopilotCliFallback(
+          fallbackMode === "agent"
+            ? this.buildAgentSystemPrompt(pageContent, !!screenshot)
+            : systemPrompt,
+          messages,
+          fallbackMode,
+          true,
+          abortSignal,
+        );
+        return;
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        failures.push(`${provider}: ${detail}`);
+        if (provider !== order[order.length - 1]) {
+          yield `\n\n[Auto fallback: ${provider} unavailable]\n`;
+        }
+      }
+    }
+
+    throw new Error(`All Auto providers failed: ${failures.join("; ")}`);
+  }
+
   async chat(
     request: ChatRequest,
     abortSignal?: AbortSignal,
@@ -228,6 +426,10 @@ export class LLMRouter {
 
     // Build system prompt with page content
     const systemPrompt = this.buildSystemPrompt(pageContent);
+
+    if (settings.provider === "auto") {
+      return this.chatWithAuto(request, systemPrompt, abortSignal);
+    }
 
     if (settings.provider === "copilot") {
       return this.chatWithCopilot(
@@ -245,6 +447,24 @@ export class LLMRouter {
         messages,
         screenshot,
         attachments,
+        abortSignal,
+      );
+    } else if (settings.provider === "copilot-sdk") {
+      return this.chatWithCopilotSdk(
+        settings.copilot.model,
+        screenshot
+          ? this.buildAgentSystemPrompt(pageContent, true)
+          : this.buildAgentSystemPrompt(pageContent, false),
+        messages,
+        this.resolveCopilotFallbackMode(request.operationMode),
+        abortSignal,
+      );
+    } else if (settings.provider === "copilot-cli") {
+      return this.chatWithCopilotCliFallback(
+        systemPrompt,
+        messages,
+        this.resolveCopilotFallbackMode(request.operationMode),
+        false,
         abortSignal,
       );
     } else {
@@ -526,6 +746,7 @@ ${pageSection}`;
     screenshot?: string,
     attachments?: ChatAttachment[],
     abortSignal?: AbortSignal,
+    allowCliFallback = true,
   ): AsyncIterable<string> {
     try {
       // Try to find model by family first
@@ -548,10 +769,14 @@ ${pageSection}`;
       const model = models[0];
 
       if (!model) {
+        if (!allowCliFallback) {
+          throw new Error("No VS Code Copilot chat model is available");
+        }
         yield* this.chatWithCopilotCliFallback(
           systemPrompt,
           messages,
           "chat",
+          true,
           abortSignal,
         );
         return;
@@ -604,6 +829,10 @@ ${pageSection}`;
         tokenSource.dispose();
       }
     } catch (error) {
+      if (!allowCliFallback) {
+        throw error;
+      }
+
       if (error instanceof vscode.LanguageModelError) {
         const lmError = error as vscode.LanguageModelError;
         if (lmError.code === "NoPermissions") {
@@ -612,6 +841,7 @@ ${pageSection}`;
               systemPrompt,
               messages,
               "chat",
+              true,
               abortSignal,
             );
             return;
@@ -624,6 +854,7 @@ ${pageSection}`;
               systemPrompt,
               messages,
               "chat",
+              true,
               abortSignal,
             );
             return;
@@ -636,6 +867,7 @@ ${pageSection}`;
           systemPrompt,
           messages,
           "chat",
+          true,
           abortSignal,
         );
       }
@@ -649,6 +881,7 @@ ${pageSection}`;
     screenshot?: string,
     attachments?: ChatAttachment[],
     abortSignal?: AbortSignal,
+    allowCliFallback = true,
   ): AsyncIterable<string> {
     try {
       // Use the selected model for agent mode
@@ -672,10 +905,14 @@ ${pageSection}`;
       const model = models[0];
 
       if (!model) {
+        if (!allowCliFallback) {
+          throw new Error("No VS Code Copilot agent model is available");
+        }
         yield* this.chatWithCopilotCliFallback(
           this.buildAgentSystemPrompt(pageContent, !!screenshot),
           messages,
           "agent",
+          true,
           abortSignal,
         );
         return;
@@ -990,6 +1227,10 @@ ${pageSection}`;
         tokenSource.dispose();
       }
     } catch (error) {
+      if (!allowCliFallback) {
+        throw error;
+      }
+
       console.error("Agent mode error:", error);
       yield `\n\n⚠️ エージェントモードエラー: ${error instanceof Error ? error.message : String(error)}`;
 

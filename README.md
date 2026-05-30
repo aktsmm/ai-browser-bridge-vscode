@@ -61,6 +61,9 @@ Or search for "GitHub Copilot Browser Bridge" in VS Code Extensions (`Ctrl+Shift
 
 - The Chrome side can now save generated Markdown to a workspace-relative path through the VS Code bridge
 - If workspace-relative save is requested without an open workspace, the Chrome extension falls back to browser downloads
+- The Chrome side provider setting can explicitly choose Auto, VS Code Language Model API, GitHub Copilot SDK, GitHub Copilot CLI, or LM Studio
+- Auto tries VS Code Language Model API → GitHub Copilot SDK → GitHub Copilot CLI for normal chat, and GitHub Copilot SDK → VS Code Language Model API → GitHub Copilot CLI for browser-agent work. LM Studio is used only when explicitly selected
+- The GitHub Copilot SDK route uses the Public Preview `@github/copilot-sdk`; SDK OS/file/MCP tool permissions are rejected by default and browser work stays bridge-managed
 - GitHub Copilot CLI can be used as a fallback response path when VS Code language model access is unavailable
 - LM Studio endpoints are restricted to localhost / loopback addresses for safety
 

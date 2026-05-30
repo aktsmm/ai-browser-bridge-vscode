@@ -19,7 +19,34 @@ vi.mock("vscode", () => ({
   },
 }));
 
-import { isUserVisibleCopilotModel, LLMRouter } from "../src/llm-router";
+import {
+  getAutoProviderOrder,
+  isUserVisibleCopilotModel,
+  LLMRouter,
+} from "../src/llm-router";
+
+describe("getAutoProviderOrder", () => {
+  it("prefers VS Code LM for lightweight text requests", () => {
+    expect(getAutoProviderOrder("text")).toEqual([
+      "vscode-lm",
+      "copilot-sdk",
+      "copilot-cli",
+    ]);
+  });
+
+  it("prefers the Copilot SDK for browser agent requests", () => {
+    expect(getAutoProviderOrder("hybrid")).toEqual([
+      "copilot-sdk",
+      "vscode-lm",
+      "copilot-cli",
+    ]);
+    expect(getAutoProviderOrder(undefined)).toEqual([
+      "copilot-sdk",
+      "vscode-lm",
+      "copilot-cli",
+    ]);
+  });
+});
 
 describe("isUserVisibleCopilotModel", () => {
   it("hides internal and utility Copilot models", () => {

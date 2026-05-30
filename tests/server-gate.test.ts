@@ -79,6 +79,32 @@ describe("bridge server authorization gate (HTTP)", () => {
     expect(body.error).toBe("Unauthorized client");
   });
 
+  it("returns provider capabilities to trusted extension clients", async () => {
+    const response = await fetch(`${baseUrl}/capabilities`, {
+      headers: TRUSTED_HEADERS,
+    });
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      version: string;
+      bridge: string;
+      providers: Array<{ id: string; status: string }>;
+      recommended: { chat: string; agent: string };
+    };
+    expect(body.version).toBe("test");
+    expect(body.bridge).toBe("vscode");
+    expect(body.recommended).toEqual({
+      chat: "vscode-lm",
+      agent: "copilot-sdk",
+    });
+    expect(body.providers.map((provider) => provider.id)).toEqual([
+      "vscode-lm",
+      "copilot-sdk",
+      "copilot-cli",
+      "lm-studio",
+    ]);
+  });
+
   it("rejects requests from a disallowed Origin", async () => {
     const response = await fetch(`${baseUrl}/models`, {
       headers: { ...TRUSTED_HEADERS, Origin: "https://evil.example.com" },

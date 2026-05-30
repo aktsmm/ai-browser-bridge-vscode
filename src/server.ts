@@ -9,6 +9,7 @@ import {
   evaluateBridgeRequestGate,
   PLAYWRIGHT_MCP_TOOL_MAP,
   validateChatRequestBody,
+  validatePlaywrightParams,
 } from "./request-guards";
 
 type ValidationResult<T> =
@@ -82,6 +83,8 @@ export class BridgeServer {
           await this.handleChat(req, res);
         } else if (url.pathname === "/models" && req.method === "GET") {
           await this.handleModels(res);
+        } else if (url.pathname === "/capabilities" && req.method === "GET") {
+          await this.handleCapabilities(res);
         } else if (url.pathname === "/file" && req.method === "POST") {
           await this.handleFileOperation(req, res);
         } else if (url.pathname === "/playwright" && req.method === "POST") {
@@ -169,6 +172,22 @@ export class BridgeServer {
     const models = await this.llmRouter.getAvailableModels();
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify(models));
+  }
+
+  private async handleCapabilities(res: http.ServerResponse): Promise<void> {
+    const providers = await this.llmRouter.getProviderCapabilities();
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(
+      JSON.stringify({
+        version: this.extensionVersion,
+        bridge: "vscode",
+        providers,
+        recommended: {
+          chat: "vscode-lm",
+          agent: "copilot-sdk",
+        },
+      }),
+    );
   }
 
   private async handleChat(
@@ -368,11 +387,19 @@ export class BridgeServer {
       return { ok: false, error: "Invalid playwright params" };
     }
 
+    const validatedParams = validatePlaywrightParams(
+      action,
+      (params ?? {}) as Record<string, unknown>,
+    );
+    if (!validatedParams.ok) {
+      return { ok: false, error: validatedParams.error };
+    }
+
     return {
       ok: true,
       value: {
         action,
-        params: (params ?? {}) as Record<string, unknown>,
+        params: validatedParams.value,
       },
     };
   }
