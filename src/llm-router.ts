@@ -56,6 +56,28 @@ export interface ModelInfo {
 const COPILOT_MODEL_FETCH_RETRY_COUNT = 3;
 const COPILOT_MODEL_FETCH_RETRY_DELAY_MS = 150;
 
+export function isUserVisibleCopilotModel(model: {
+  family?: string;
+  id?: string;
+  name?: string;
+}): boolean {
+  const family = (model.family || model.id || "").toLowerCase();
+  const name = (model.name || "").toLowerCase();
+  const combined = `${family} ${name}`;
+
+  if (!family) {
+    return false;
+  }
+
+  return ![
+    "internal only",
+    "internal",
+    "copilot-utility",
+    "oswe-",
+    "modeld",
+  ].some((marker) => combined.includes(marker));
+}
+
 // Tool definitions for agent mode
 interface ToolCall {
   callId: string;
@@ -132,6 +154,10 @@ export class LLMRouter {
       const seenFamilies = new Set<string>();
 
       for (const model of copilotModels) {
+        if (!isUserVisibleCopilotModel(model)) {
+          continue;
+        }
+
         if (seenFamilies.has(model.family)) {
           continue;
         }
@@ -180,7 +206,9 @@ export class LLMRouter {
 
     const available = await this.copilotCliClient.isAvailable();
     if (!available) {
-      throw new Error("GitHub Copilot CLI is not available in this environment");
+      throw new Error(
+        "GitHub Copilot CLI is not available in this environment",
+      );
     }
 
     yield "[GitHub Copilot CLI fallback]\n\n";
@@ -195,7 +223,8 @@ export class LLMRouter {
     request: ChatRequest,
     abortSignal?: AbortSignal,
   ): Promise<AsyncIterable<string>> {
-    const { settings, messages, pageContent, screenshot, attachments } = request;
+    const { settings, messages, pageContent, screenshot, attachments } =
+      request;
 
     // Build system prompt with page content
     const systemPrompt = this.buildSystemPrompt(pageContent);
@@ -232,9 +261,10 @@ export class LLMRouter {
     messageContent: string,
     attachments: ChatAttachment[] | undefined,
   ): (vscode.LanguageModelTextPart | vscode.LanguageModelDataPart)[] {
-    const parts: (vscode.LanguageModelTextPart | vscode.LanguageModelDataPart)[] = [
-      new vscode.LanguageModelTextPart(messageContent),
-    ];
+    const parts: (
+      | vscode.LanguageModelTextPart
+      | vscode.LanguageModelDataPart
+    )[] = [new vscode.LanguageModelTextPart(messageContent)];
 
     for (const attachment of attachments ?? []) {
       if (attachment.kind === "text" && attachment.textContent) {
@@ -535,7 +565,9 @@ ${pageSection}`;
 
       messages.forEach((msg, index) => {
         const isLatestUserMessage =
-          msg.role === "user" && index === messages.length - 1 && (attachments?.length ?? 0) > 0;
+          msg.role === "user" &&
+          index === messages.length - 1 &&
+          (attachments?.length ?? 0) > 0;
 
         if (isLatestUserMessage) {
           chatMessages.push(
@@ -1073,7 +1105,9 @@ ${pageSection}`;
           if (!terminalCheck.ok) {
             return {
               success: false,
-              result: terminalCheck.reason || "run_terminal は許可されていないコマンドです。",
+              result:
+                terminalCheck.reason ||
+                "run_terminal は許可されていないコマンドです。",
             };
           }
           const terminal = vscode.window.createTerminal("Agent");

@@ -2,7 +2,7 @@
   "name": "copilot-browser-bridge-vscode",
   "displayName": "GitHub Copilot Browser Bridge",
   "description": "ブラウザのページ内容をGitHub Copilot/ローカルLLMで解析・対話",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "publisher": "yamapan",
   "repository": {
     "type": "git",

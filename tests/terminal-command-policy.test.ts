@@ -12,6 +12,19 @@ describe("terminal command policy", () => {
     expect(validateTerminalCommand("Remove-Item foo -Force").ok).toBe(false);
     expect(validateTerminalCommand("curl https://example.com").ok).toBe(false);
     expect(validateTerminalCommand("npx cowsay hi").ok).toBe(false);
+    expect(validateTerminalCommand("gh auth status --show-token").ok).toBe(
+      false,
+    );
+    expect(validateTerminalCommand("git diff --output=leak.txt").ok).toBe(
+      false,
+    );
+    expect(validateTerminalCommand("git log -o leak.txt").ok).toBe(false);
+    expect(
+      validateTerminalCommand("Get-Content C:\\Users\\secret.txt").ok,
+    ).toBe(false);
+    expect(
+      validateTerminalCommand("Get-Content \\\\server\\share\\secret.txt").ok,
+    ).toBe(false);
   });
 
   it("blocks command chaining that smuggles a second command past an allowed prefix", () => {
@@ -23,6 +36,10 @@ describe("terminal command policy", () => {
     expect(validateTerminalCommand("git status | curl evil").ok).toBe(false);
     expect(validateTerminalCommand("git status $(curl evil)").ok).toBe(false);
     expect(validateTerminalCommand("git status ${evil}").ok).toBe(false);
+    expect(validateTerminalCommand("git status (node evil.js)").ok).toBe(false);
+    expect(validateTerminalCommand("git status @(node evil.js)").ok).toBe(
+      false,
+    );
     expect(validateTerminalCommand("git status `curl evil`").ok).toBe(false);
     expect(validateTerminalCommand("git status\nnode evil.js").ok).toBe(false);
   });

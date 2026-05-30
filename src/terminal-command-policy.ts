@@ -31,10 +31,14 @@ const BLOCKED_COMMAND_PATTERNS = [
   /\bpwsh\b/i,
   /\bpython\b/i,
   /\bnpx\b/i,
-  // Shell metacharacters that enable command chaining, redirection, or
-  // substitution. Without these, an allowed prefix (e.g. "git status") could
-  // smuggle an arbitrary second command, e.g. "git status; node evil.js".
-  /[|><`;&\n\r]/,
+  /(^|\s)--show-token\b/i,
+  /(^|\s)(--output(?:=|\s)|-o(?:\s|$))/i,
+  /(^|\s)(?:[a-z]:|\\\\)/i,
+  // Shell metacharacters that enable command chaining, redirection,
+  // grouping, or substitution. Without these, an allowed prefix (e.g.
+  // "git status") could smuggle an arbitrary second command, e.g.
+  // "git status; node evil.js" or "git status (node evil.js)".
+  /[|><`;&()\n\r]/,
   /\$[({]/,
 ];
 
