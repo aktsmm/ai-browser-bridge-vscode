@@ -587,11 +587,19 @@ Available file actions (creates files in VS Code workspace):
 When the user asks you to perform browser actions or create files/reports, include the appropriate [ACTION: ...] or [FILE: ...] commands in your response.
 `;
 
+    const missingPageContentRule = `
+## ページ本文が未取得の場合
+- ユーザーが現在ページの要約、翻訳、Q&A、リンク抽出を求めた場合は、ページ本文が提供されていないため実行できないと明確に伝えてください。
+- 推測でページ内容を要約しないでください。
+- 必要なら、ページ本文の貼り付け、ページ再読み込み、対象URLの確認を依頼してください。
+`;
+
     if (!pageContent || pageContent.trim().length === 0) {
       return `あなたはユーザーの頼れるアシスタントです。ブラウザを操作し、ファイルを作成できます。
 
 ## できること
 ${browserActionsDoc}
+${missingPageContentRule}
 
 ## 心がけ
 - ユーザーの意図を理解し、適切なアクションを提案

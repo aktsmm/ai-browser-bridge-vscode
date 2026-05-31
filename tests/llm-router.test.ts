@@ -100,3 +100,27 @@ describe("isUserVisibleCopilotModel", () => {
     ]);
   });
 });
+
+describe("LLMRouter page context prompts", () => {
+  it("tells the model not to summarize unavailable page text", () => {
+    const router = new LLMRouter() as unknown as {
+      buildSystemPrompt(pageContent: string): string;
+    };
+
+    const prompt = router.buildSystemPrompt("");
+
+    expect(prompt).toContain("ページ本文が提供されていない");
+    expect(prompt).toContain("推測でページ内容を要約しない");
+  });
+
+  it("includes extracted page content when available", () => {
+    const router = new LLMRouter() as unknown as {
+      buildSystemPrompt(pageContent: string): string;
+    };
+
+    const prompt = router.buildSystemPrompt("LinkedIn feed extracted text");
+
+    expect(prompt).toContain("---ページ内容---");
+    expect(prompt).toContain("LinkedIn feed extracted text");
+  });
+});
