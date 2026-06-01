@@ -95,7 +95,7 @@ describe("bridge server authorization gate (HTTP)", () => {
     expect(body.bridge).toBe("vscode");
     expect(body.recommended).toEqual({
       chat: "vscode-lm",
-      agent: "copilot-sdk",
+      agent: "vscode-lm",
     });
     expect(body.providers.map((provider) => provider.id)).toEqual([
       "vscode-lm",
@@ -103,6 +103,12 @@ describe("bridge server authorization gate (HTTP)", () => {
       "copilot-cli",
       "lm-studio",
     ]);
+    expect(body.providers).toContainEqual(
+      expect.objectContaining({
+        id: "copilot-sdk",
+        userSelectable: false,
+      }),
+    );
   });
 
   it("rejects requests from a disallowed Origin", async () => {

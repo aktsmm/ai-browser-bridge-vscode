@@ -27,21 +27,15 @@ import {
 
 describe("getAutoProviderOrder", () => {
   it("prefers VS Code LM for lightweight text requests", () => {
-    expect(getAutoProviderOrder("text")).toEqual([
-      "vscode-lm",
-      "copilot-sdk",
-      "copilot-cli",
-    ]);
+    expect(getAutoProviderOrder("text")).toEqual(["vscode-lm", "copilot-cli"]);
   });
 
-  it("prefers the Copilot SDK for browser agent requests", () => {
+  it("prefers VS Code LM for browser agent requests", () => {
     expect(getAutoProviderOrder("hybrid")).toEqual([
-      "copilot-sdk",
       "vscode-lm",
       "copilot-cli",
     ]);
     expect(getAutoProviderOrder(undefined)).toEqual([
-      "copilot-sdk",
       "vscode-lm",
       "copilot-cli",
     ]);
@@ -98,6 +92,23 @@ describe("isUserVisibleCopilotModel", () => {
     expect(models.filter((model) => model.provider === "copilot")).toEqual([
       { provider: "copilot", id: "gpt-5.2", name: "GPT-5.2 (gpt-5.2)" },
     ]);
+  });
+
+  it("reports SDK and CLI as non-primary provider capabilities", async () => {
+    const router = new LLMRouter();
+    const capabilities = await router.getProviderCapabilities();
+    const sdk = capabilities.find((provider) => provider.id === "copilot-sdk");
+    const cli = capabilities.find((provider) => provider.id === "copilot-cli");
+
+    expect(sdk).toMatchObject({
+      isExperimental: true,
+      userSelectable: false,
+      supportsAgentLoop: false,
+    });
+    expect(cli).toMatchObject({
+      userSelectable: false,
+      supportsAgentLoop: false,
+    });
   });
 });
 

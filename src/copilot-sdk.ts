@@ -24,6 +24,15 @@ type CopilotClientConstructor = new (options: {
 
 export const COPILOT_SDK_TIMEOUT_MS = 60_000;
 
+export function getCopilotSdkRuntimeBlockReason(): string | null {
+  const execPath = process.execPath.toLowerCase();
+  if (process.versions.electron || execPath.endsWith("code.exe")) {
+    return "Copilot SDK runtime is disabled inside the VS Code extension host because the SDK starts its bundled JavaScript runtime via process.execPath, which can resolve to Code.exe instead of node.exe.";
+  }
+
+  return null;
+}
+
 function getWorkspaceDirectory(): string | undefined {
   return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 }
@@ -73,6 +82,10 @@ export function buildCopilotSdkPrompt(
 
 export class CopilotSdkClient {
   async isAvailable(): Promise<boolean> {
+    if (getCopilotSdkRuntimeBlockReason()) {
+      return false;
+    }
+
     try {
       await import("@github/copilot-sdk");
       return true;
@@ -86,6 +99,11 @@ export class CopilotSdkClient {
     model: string,
     abortSignal?: AbortSignal,
   ): Promise<string> {
+    const runtimeBlockReason = getCopilotSdkRuntimeBlockReason();
+    if (runtimeBlockReason) {
+      throw new Error(runtimeBlockReason);
+    }
+
     if (abortSignal?.aborted) {
       throw new Error("GitHub Copilot SDK request aborted");
     }

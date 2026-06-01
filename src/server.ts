@@ -184,7 +184,7 @@ export class BridgeServer {
         providers,
         recommended: {
           chat: "vscode-lm",
-          agent: "copilot-sdk",
+          agent: "vscode-lm",
         },
       }),
     );

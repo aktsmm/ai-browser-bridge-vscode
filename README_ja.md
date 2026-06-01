@@ -64,10 +64,11 @@ code --install-extension yamapan.copilot-browser-bridge-vscode
 
 - Chrome 側で生成した Markdown を VS Code workspace 相対 path へ保存できるようになりました
 - workspace 相対保存を要求しても workspace が未オープンなら、Chrome 拡張はブラウザのダウンロードへフォールバックします
-- Chrome 側の provider 設定から Auto、VS Code Language Model API、GitHub Copilot SDK、GitHub Copilot CLI、LM Studio を明示選択できます
-- Auto は通常チャットでは VS Code Language Model API → GitHub Copilot SDK → GitHub Copilot CLI の順に試し、ブラウザ操作を伴う Agent 系では GitHub Copilot SDK → VS Code Language Model API → GitHub Copilot CLI の順に試します。LM Studio は明示選択時のみ使います
-- GitHub Copilot SDK は Public Preview の `@github/copilot-sdk` を使用します。SDK の OS / ファイル / MCP などのツール権限は既定で拒否され、bridge 管理のブラウザ操作へ寄せます
-- VS Code の language model access が使えない場合、GitHub Copilot CLI を fallback 応答経路として利用できます
+- Chrome 側の主な provider 設定から Auto、VS Code Language Model API、LM Studio を選択できます
+- Auto は通常チャットとブラウザ操作 Agent 系のどちらでも VS Code Language Model API を優先します。GitHub Copilot CLI は最後の回答 fallback としてのみ使います。LM Studio は明示選択時のみ使います
+- GitHub Copilot SDK は Public Preview の `@github/copilot-sdk` を使用しますが、通常 provider ではなく experimental / advanced fallback 診断として扱います。VS Code extension host では `process.execPath` が Code/Electron を指し SDK runtime 起動に失敗することがあるため、利用可否を gate します
+- VS Code の language model access が使えない場合、GitHub Copilot CLI を最後の fallback 応答経路として利用できます
+- Copilot モデル選択は live-only です。bridge が user-visible な Copilot モデルを返せない時は、固定 fallback model ID を選択可能にしません
 - LM Studio の endpoint は安全のため localhost / loopback アドレスのみに制限されます
 
 ### リクエスト認可モデル

@@ -4,7 +4,11 @@ import {
   CopilotCliClient,
   isCopilotCliFallbackEnabled,
 } from "./copilot-cli";
-import { buildCopilotSdkPrompt, CopilotSdkClient } from "./copilot-sdk";
+import {
+  buildCopilotSdkPrompt,
+  CopilotSdkClient,
+  getCopilotSdkRuntimeBlockReason,
+} from "./copilot-sdk";
 import { isAllowedLmStudioEndpoint } from "./request-guards";
 import { validateTerminalCommand } from "./terminal-command-policy";
 import {
@@ -65,10 +69,18 @@ export interface ProviderCapability {
   name: string;
   status: "available" | "unavailable" | "unknown";
   detail?: string;
+  reason?: string;
+  supportsChat?: boolean;
+  supportsAgentLoop?: boolean;
+  supportsBrowserActions?: boolean;
+  supportsModelList?: boolean;
+  supportsVision?: boolean;
+  isExperimental?: boolean;
+  userSelectable?: boolean;
   models?: ModelInfo[];
 }
 
-type AutoProviderId = "vscode-lm" | "copilot-sdk" | "copilot-cli";
+type AutoProviderId = "vscode-lm" | "copilot-cli";
 
 const COPILOT_MODEL_FETCH_RETRY_COUNT = 3;
 const COPILOT_MODEL_FETCH_RETRY_DELAY_MS = 150;
@@ -76,11 +88,8 @@ const COPILOT_MODEL_FETCH_RETRY_DELAY_MS = 150;
 export function getAutoProviderOrder(
   operationMode: ChatRequest["operationMode"] | undefined,
 ): AutoProviderId[] {
-  if (operationMode === "text") {
-    return ["vscode-lm", "copilot-sdk", "copilot-cli"];
-  }
-
-  return ["copilot-sdk", "vscode-lm", "copilot-cli"];
+  void operationMode;
+  return ["vscode-lm", "copilot-cli"];
 }
 
 export function isUserVisibleCopilotModel(model: {
@@ -201,29 +210,11 @@ export class LLMRouter {
       console.log("Copilot models not available:", error);
     }
 
-    // LM Studio models would be fetched from endpoint
-    models.push({
-      provider: "copilot-sdk",
-      id: "sdk-agent",
-      name: "GitHub Copilot SDK (Agent)",
-    });
-
     models.push({
       provider: "lm-studio",
       id: "local",
       name: "LM Studio (Local)",
     });
-
-    if (
-      isCopilotCliFallbackEnabled() &&
-      (await this.copilotCliClient.isAvailable())
-    ) {
-      models.push({
-        provider: "copilot-cli",
-        id: "cli-fallback",
-        name: "GitHub Copilot CLI (fallback)",
-      });
-    }
 
     return models;
   }
@@ -237,6 +228,12 @@ export class LLMRouter {
         id: "vscode-lm",
         name: "VS Code Language Model API",
         status: copilotModels.length > 0 ? "available" : "unavailable",
+        supportsChat: copilotModels.length > 0,
+        supportsAgentLoop: copilotModels.length > 0,
+        supportsBrowserActions: copilotModels.length > 0,
+        supportsModelList: true,
+        supportsVision: copilotModels.length > 0,
+        userSelectable: copilotModels.length > 0,
         detail:
           copilotModels.length > 0
             ? undefined
@@ -254,18 +251,36 @@ export class LLMRouter {
         id: "vscode-lm",
         name: "VS Code Language Model API",
         status: "unavailable",
+        supportsChat: false,
+        supportsAgentLoop: false,
+        supportsBrowserActions: false,
+        supportsModelList: true,
+        supportsVision: false,
+        userSelectable: false,
         detail: error instanceof Error ? error.message : String(error),
       });
     }
 
-    const copilotSdkAvailable = await this.copilotSdkClient.isAvailable();
+    const copilotSdkRuntimeBlockReason = getCopilotSdkRuntimeBlockReason();
+    const copilotSdkAvailable = copilotSdkRuntimeBlockReason
+      ? false
+      : await this.copilotSdkClient.isAvailable();
     capabilities.push({
       id: "copilot-sdk",
       name: "GitHub Copilot SDK",
       status: copilotSdkAvailable ? "available" : "unavailable",
+      supportsChat: copilotSdkAvailable,
+      supportsAgentLoop: false,
+      supportsBrowserActions: false,
+      supportsModelList: false,
+      supportsVision: false,
+      isExperimental: true,
+      userSelectable: false,
+      reason: copilotSdkRuntimeBlockReason ?? undefined,
       detail: copilotSdkAvailable
-        ? "Runtime authentication is checked on first SDK request."
-        : "@github/copilot-sdk could not be loaded by the bridge process.",
+        ? "Experimental SDK route is available but not used by Auto."
+        : (copilotSdkRuntimeBlockReason ??
+          "@github/copilot-sdk could not be loaded by the bridge process."),
     });
 
     const copilotCliFallbackEnabled = isCopilotCliFallbackEnabled();
@@ -276,9 +291,15 @@ export class LLMRouter {
       id: "copilot-cli",
       name: "GitHub Copilot CLI",
       status: copilotCliAvailable ? "available" : "unavailable",
+      supportsChat: copilotCliAvailable,
+      supportsAgentLoop: false,
+      supportsBrowserActions: false,
+      supportsModelList: false,
+      supportsVision: false,
+      userSelectable: false,
       detail: copilotCliFallbackEnabled
         ? copilotCliAvailable
-          ? undefined
+          ? "CLI is available as a last-resort answer fallback only."
           : "Copilot CLI command was not available to the bridge process."
         : "Copilot CLI fallback is disabled in VS Code settings.",
     });
@@ -287,6 +308,12 @@ export class LLMRouter {
       id: "lm-studio",
       name: "LM Studio",
       status: "unknown",
+      supportsChat: true,
+      supportsAgentLoop: false,
+      supportsBrowserActions: false,
+      supportsModelList: false,
+      supportsVision: false,
+      userSelectable: true,
       detail: "Endpoint health depends on the side panel LM Studio settings.",
     });
 
@@ -317,7 +344,6 @@ export class LLMRouter {
       );
     }
 
-    yield "[GitHub Copilot CLI fallback]\n\n";
     const prompt = buildCopilotCliPrompt(systemPrompt, messages, {
       fallbackMode,
     });
@@ -332,7 +358,6 @@ export class LLMRouter {
     fallbackMode: "chat" | "agent",
     abortSignal?: AbortSignal,
   ): AsyncIterable<string> {
-    yield "[GitHub Copilot SDK]\n\n";
     const prompt = buildCopilotSdkPrompt(systemPrompt, messages, {
       agentMode: fallbackMode === "agent",
     });
@@ -357,19 +382,6 @@ export class LLMRouter {
 
     for (const provider of order) {
       try {
-        if (provider === "copilot-sdk") {
-          yield* this.chatWithCopilotSdk(
-            settings.copilot.model,
-            fallbackMode === "agent"
-              ? this.buildAgentSystemPrompt(pageContent, !!screenshot)
-              : systemPrompt,
-            messages,
-            fallbackMode,
-            abortSignal,
-          );
-          return;
-        }
-
         if (provider === "vscode-lm") {
           if (fallbackMode === "agent") {
             yield* this.chatWithCopilotAgent(
@@ -409,7 +421,7 @@ export class LLMRouter {
         const detail = error instanceof Error ? error.message : String(error);
         failures.push(`${provider}: ${detail}`);
         if (provider !== order[order.length - 1]) {
-          yield `\n\n[Auto fallback: ${provider} unavailable]\n`;
+          console.warn(`Auto provider ${provider} unavailable: ${detail}`);
         }
       }
     }
@@ -441,8 +453,19 @@ export class LLMRouter {
         abortSignal,
       );
     } else if (settings.provider === "copilot-agent") {
+      if (request.operationMode === "text") {
+        return this.chatWithCopilot(
+          settings.copilot.model,
+          systemPrompt,
+          messages,
+          screenshot,
+          attachments,
+          abortSignal,
+        );
+      }
+
       return this.chatWithCopilotAgent(
-        settings.copilot.model, // Pass selected model
+        settings.copilot.model,
         pageContent,
         messages,
         screenshot,
