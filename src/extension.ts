@@ -5,7 +5,7 @@ let server: BridgeServer | undefined;
 let extensionVersion = "unknown";
 
 export function activate(context: vscode.ExtensionContext) {
-  console.log("GitHub Copilot Browser Bridge: Extension activated");
+  console.log("AI Browser Bridge: Extension activated");
   const packageVersion = context.extension.packageJSON?.version;
   extensionVersion =
     typeof packageVersion === "string" && packageVersion.trim().length > 0
@@ -41,7 +41,7 @@ export function activate(context: vscode.ExtensionContext) {
 async function startServer(): Promise<void> {
   if (server) {
     vscode.window.showInformationMessage(
-      "GitHub Copilot Browser Bridge: Server is already running",
+      "AI Browser Bridge: Server is already running",
     );
     return;
   }
@@ -54,13 +54,13 @@ async function startServer(): Promise<void> {
   try {
     await server.start();
     vscode.window.showInformationMessage(
-      `GitHub Copilot Browser Bridge: Server started on port ${port}`,
+      `AI Browser Bridge: Server started on port ${port}`,
     );
   } catch (error) {
     server = undefined;
     const message = error instanceof Error ? error.message : String(error);
     vscode.window.showErrorMessage(
-      `GitHub Copilot Browser Bridge: Failed to start server (${message})`,
+      `AI Browser Bridge: Failed to start server (${message})`,
     );
   }
 }
@@ -68,7 +68,7 @@ async function startServer(): Promise<void> {
 function stopServer() {
   if (!server) {
     vscode.window.showInformationMessage(
-      "GitHub Copilot Browser Bridge: Server is not running",
+      "AI Browser Bridge: Server is not running",
     );
     return;
   }
@@ -76,9 +76,7 @@ function stopServer() {
   server.stop();
   server = undefined;
 
-  vscode.window.showInformationMessage(
-    "GitHub Copilot Browser Bridge: Server stopped",
-  );
+  vscode.window.showInformationMessage("AI Browser Bridge: Server stopped");
 }
 
 export function deactivate() {

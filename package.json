@@ -1,9 +1,23 @@
 {
   "name": "copilot-browser-bridge-vscode",
-  "displayName": "GitHub Copilot Browser Bridge",
-  "description": "ブラウザのページ内容をGitHub Copilot/ローカルLLMで解析・対話",
-  "version": "0.1.18",
+  "displayName": "AI Browser Bridge",
+  "description": "ブラウザのページ内容をAIで解析・対話。GitHub Copilot またはローカルLLMと連携。",
+  "version": "0.1.20",
   "publisher": "yamapan",
+  "keywords": [
+    "browser",
+    "ai",
+    "llm",
+    "copilot",
+    "github copilot",
+    "local llm",
+    "lm studio",
+    "page analysis",
+    "automation",
+    "bridge",
+    "side panel",
+    "web"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/aktsmm/copilot-browser-bridge-vscode"
@@ -22,15 +36,15 @@
     "commands": [
       {
         "command": "copilotBrowserBridge.startServer",
-        "title": "GitHub Copilot Browser Bridge: Start Server"
+        "title": "AI Browser Bridge: Start Server"
       },
       {
         "command": "copilotBrowserBridge.stopServer",
-        "title": "GitHub Copilot Browser Bridge: Stop Server"
+        "title": "AI Browser Bridge: Stop Server"
       }
     ],
     "configuration": {
-      "title": "GitHub Copilot Browser Bridge",
+      "title": "AI Browser Bridge",
       "properties": {
         "copilotBrowserBridge.serverPort": {
           "type": "number",

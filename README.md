@@ -1,4 +1,4 @@
-# GitHub Copilot Browser Bridge for VS Code
+# AI Browser Bridge for VS Code
 
 [![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/yamapan.copilot-browser-bridge-vscode?label=VS%20Code%20Marketplace&logo=visual-studio-code)](https://marketplace.visualstudio.com/items?itemName=yamapan.copilot-browser-bridge-vscode)
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](LICENSE)
@@ -22,7 +22,7 @@ CC BY-NC-SA 4.0 — see [LICENSE](LICENSE).
 code --install-extension yamapan.copilot-browser-bridge-vscode
 ```
 
-Or search for "GitHub Copilot Browser Bridge" in VS Code Extensions (`Ctrl+Shift+X`)
+Or search for "AI Browser Bridge" in VS Code Extensions (`Ctrl+Shift+X`)
 
 ### Manual Installation
 
@@ -33,7 +33,7 @@ Or search for "GitHub Copilot Browser Bridge" in VS Code Extensions (`Ctrl+Shift
 ## 📋 Requirements
 
 - **VS Code** 1.90.0 or higher
-- **Chrome Extension**: [GitHub Copilot Browser Bridge](https://github.com/aktsmm/copilot-browser-bridge)
+- **Chrome Extension**: [AI Browser Bridge](https://github.com/aktsmm/copilot-browser-bridge)
 - **GitHub Copilot** subscription, or **LM Studio** (Local LLM)
 
 ## 🎮 Usage
@@ -44,8 +44,8 @@ Or search for "GitHub Copilot Browser Bridge" in VS Code Extensions (`Ctrl+Shift
 
 ### Commands
 
-- `GitHub Copilot Browser Bridge: Start Server` - Manually start the server
-- `GitHub Copilot Browser Bridge: Stop Server` - Stop the server
+- `AI Browser Bridge: Start Server` - Manually start the server
+- `AI Browser Bridge: Stop Server` - Stop the server
 
 ## ⚙️ Settings
 
@@ -105,7 +105,7 @@ CC BY-NC-SA 4.0 © [aktsmm](https://github.com/aktsmm)
 
 ## 🔗 Related Projects
 
-- [GitHub Copilot Browser Bridge (Chrome Extension)](https://github.com/aktsmm/copilot-browser-bridge)
+- [AI Browser Bridge (Chrome Extension)](https://github.com/aktsmm/copilot-browser-bridge)
 
 ## 👤 Author
 

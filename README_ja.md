@@ -1,4 +1,4 @@
-# GitHub Copilot Browser Bridge for VS Code
+# AI Browser Bridge for VS Code
 
 [![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/yamapan.copilot-browser-bridge-vscode?label=VS%20Code%20Marketplace&logo=visual-studio-code)](https://marketplace.visualstudio.com/items?itemName=yamapan.copilot-browser-bridge-vscode)
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](LICENSE)
@@ -25,7 +25,7 @@
 code --install-extension yamapan.copilot-browser-bridge-vscode
 ```
 
-または VS Code の拡張機能パネル (`Ctrl+Shift+X`) で「GitHub Copilot Browser Bridge」を検索
+または VS Code の拡張機能パネル (`Ctrl+Shift+X`) で「AI Browser Bridge」を検索
 
 ### 手動インストール
 
@@ -36,7 +36,7 @@ code --install-extension yamapan.copilot-browser-bridge-vscode
 ## 📋 必要条件
 
 - **VS Code** 1.90.0 以上
-- **Chrome拡張機能**: [GitHub Copilot Browser Bridge](https://github.com/aktsmm/copilot-browser-bridge)
+- **Chrome拡張機能**: [AI Browser Bridge](https://github.com/aktsmm/copilot-browser-bridge)
 - **GitHub Copilot** サブスクリプション、または **LM Studio**（ローカルLLM）
 
 ## 🎮 使い方
@@ -47,8 +47,8 @@ code --install-extension yamapan.copilot-browser-bridge-vscode
 
 ### コマンド
 
-- `GitHub Copilot Browser Bridge: Start Server` - サーバーを手動で開始
-- `GitHub Copilot Browser Bridge: Stop Server` - サーバーを停止
+- `AI Browser Bridge: Start Server` - サーバーを手動で開始
+- `AI Browser Bridge: Stop Server` - サーバーを停止
 
 ## ⚙️ 設定
 
@@ -108,7 +108,7 @@ CC BY-NC-SA 4.0 © [aktsmm](https://github.com/aktsmm)
 
 ## 🔗 関連プロジェクト
 
-- [GitHub Copilot Browser Bridge (Chrome Extension)](https://github.com/aktsmm/copilot-browser-bridge)
+- [AI Browser Bridge (Chrome Extension)](https://github.com/aktsmm/copilot-browser-bridge)
 
 ## 👤 Author
 

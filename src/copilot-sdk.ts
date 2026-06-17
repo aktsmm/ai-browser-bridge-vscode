@@ -47,7 +47,7 @@ export function rejectToolPermission(
 
   return {
     kind: "reject",
-    feedback: `GitHub Copilot Browser Bridge blocks Copilot SDK ${requestKind} requests in this mode. Use bridge-managed browser actions instead.`,
+    feedback: `AI Browser Bridge blocks Copilot SDK ${requestKind} requests in this mode. Use bridge-managed browser actions instead.`,
   };
 }
 

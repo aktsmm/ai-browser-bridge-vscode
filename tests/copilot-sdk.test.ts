@@ -45,7 +45,7 @@ describe("rejectToolPermission", () => {
     expect(rejectToolPermission({ kind: "shell" })).toEqual({
       kind: "reject",
       feedback:
-        "GitHub Copilot Browser Bridge blocks Copilot SDK shell requests in this mode. Use bridge-managed browser actions instead.",
+        "AI Browser Bridge blocks Copilot SDK shell requests in this mode. Use bridge-managed browser actions instead.",
     });
   });
 });

@@ -8,14 +8,17 @@ out/**/*.map
 **/*.d.ts.map
 **/*.map
 **/*.pdb
-node_modules/**/src/**
-node_modules/**/test/**
-node_modules/**/tests/**
-node_modules/**/benchmarks/**
+# Exclude all node_modules: the compiled output (out/) requires no external
+# runtime packages (only the `vscode` host API and Node built-ins). The single
+# external dependency `@github/copilot-sdk` is loaded via a guarded dynamic
+# import that is intentionally disabled inside the VS Code extension host, so
+# shipping its 285MB transitive tree (`@github/copilot`) would be dead weight.
+node_modules/**
 eslint.config.mjs
 tsconfig.json
 .gitignore
 *.vsix
+*.ps1
 vsce-show.json
 npm-audit.json
 
