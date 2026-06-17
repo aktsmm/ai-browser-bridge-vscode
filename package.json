@@ -2,7 +2,7 @@
   "name": "copilot-browser-bridge-vscode",
   "displayName": "AI Browser Bridge",
   "description": "ブラウザのページ内容をAIで解析・対話。GitHub Copilot またはローカルLLMと連携。",
-  "version": "0.1.20",
+  "version": "0.1.21",
   "publisher": "yamapan",
   "keywords": [
     "browser",
