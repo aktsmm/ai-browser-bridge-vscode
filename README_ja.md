@@ -2,7 +2,7 @@
 
 [![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/yamapan.copilot-browser-bridge-vscode?label=VS%20Code%20Marketplace&logo=visual-studio-code)](https://marketplace.visualstudio.com/items?itemName=yamapan.copilot-browser-bridge-vscode)
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](LICENSE)
-[![GitHub](https://img.shields.io/github/stars/aktsmm/copilot-browser-bridge-vscode?style=social)](https://github.com/aktsmm/copilot-browser-bridge-vscode)
+[![GitHub](https://img.shields.io/github/stars/aktsmm/ai-browser-bridge-vscode?style=social)](https://github.com/aktsmm/ai-browser-bridge-vscode)
 
 🔗 Chrome拡張機能と連携して、ブラウザのページ内容をLLM（GitHub Copilot / ローカルLLM）で解析・対話するVS Code拡張機能
 
@@ -29,14 +29,14 @@ code --install-extension yamapan.copilot-browser-bridge-vscode
 
 ### 手動インストール
 
-1. [Releases](https://github.com/aktsmm/copilot-browser-bridge-vscode/releases) から `.vsix` をダウンロード
+1. [Releases](https://github.com/aktsmm/ai-browser-bridge-vscode/releases) から `.vsix` をダウンロード
 2. VS Code: `Ctrl+Shift+P` → `Extensions: Install from VSIX...`
 3. ダウンロードした `.vsix` を選択
 
 ## 📋 必要条件
 
 - **VS Code** 1.90.0 以上
-- **Chrome拡張機能**: [AI Browser Bridge](https://github.com/aktsmm/copilot-browser-bridge)
+- **Chrome拡張機能**: [AI Browser Bridge](https://github.com/aktsmm/ai-browser-bridge)
 - **GitHub Copilot** サブスクリプション、または **LM Studio**（ローカルLLM）
 
 ## 🎮 使い方
@@ -108,7 +108,7 @@ CC BY-NC-SA 4.0 © [aktsmm](https://github.com/aktsmm)
 
 ## 🔗 関連プロジェクト
 
-- [AI Browser Bridge (Chrome Extension)](https://github.com/aktsmm/copilot-browser-bridge)
+- [AI Browser Bridge (Chrome Extension)](https://github.com/aktsmm/ai-browser-bridge)
 
 ## 👤 Author
 

@@ -2,7 +2,7 @@
 
 [![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/yamapan.copilot-browser-bridge-vscode?label=VS%20Code%20Marketplace&logo=visual-studio-code)](https://marketplace.visualstudio.com/items?itemName=yamapan.copilot-browser-bridge-vscode)
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](LICENSE)
-[![GitHub](https://img.shields.io/github/stars/aktsmm/copilot-browser-bridge-vscode?style=social)](https://github.com/aktsmm/copilot-browser-bridge-vscode)
+[![GitHub](https://img.shields.io/github/stars/aktsmm/ai-browser-bridge-vscode?style=social)](https://github.com/aktsmm/ai-browser-bridge-vscode)
 
 🔗 VS Code extension that bridges browser pages with LLM (GitHub Copilot / Local LLM) for analysis and interaction
 
@@ -26,14 +26,14 @@ Or search for "AI Browser Bridge" in VS Code Extensions (`Ctrl+Shift+X`)
 
 ### Manual Installation
 
-1. Download `.vsix` from [Releases](https://github.com/aktsmm/copilot-browser-bridge-vscode/releases)
+1. Download `.vsix` from [Releases](https://github.com/aktsmm/ai-browser-bridge-vscode/releases)
 2. VS Code: `Ctrl+Shift+P` → `Extensions: Install from VSIX...`
 3. Select the downloaded `.vsix` file
 
 ## 📋 Requirements
 
 - **VS Code** 1.90.0 or higher
-- **Chrome Extension**: [AI Browser Bridge](https://github.com/aktsmm/copilot-browser-bridge)
+- **Chrome Extension**: [AI Browser Bridge](https://github.com/aktsmm/ai-browser-bridge)
 - **GitHub Copilot** subscription, or **LM Studio** (Local LLM)
 
 ## 🎮 Usage
@@ -105,7 +105,7 @@ CC BY-NC-SA 4.0 © [aktsmm](https://github.com/aktsmm)
 
 ## 🔗 Related Projects
 
-- [AI Browser Bridge (Chrome Extension)](https://github.com/aktsmm/copilot-browser-bridge)
+- [AI Browser Bridge (Chrome Extension)](https://github.com/aktsmm/ai-browser-bridge)
 
 ## 👤 Author
 
