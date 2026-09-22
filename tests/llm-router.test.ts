@@ -3,11 +3,38 @@ import { describe, expect, it, vi } from "vitest";
 type MockLanguageModel = {
   family: string;
   name: string;
+  id?: string;
+  sendRequest?: ReturnType<typeof vi.fn>;
 };
 
 const selectedModels: MockLanguageModel[] = [];
 
 vi.mock("vscode", () => ({
+  LanguageModelChatMessage: {
+    User: (content: unknown) => ({ role: "user", content }),
+    Assistant: (content: unknown) => ({ role: "assistant", content }),
+  },
+  LanguageModelTextPart: class {
+    constructor(public value: string) {}
+  },
+  LanguageModelToolCallPart: class {
+    constructor(
+      public callId: string,
+      public name: string,
+      public input: unknown,
+    ) {}
+  },
+  LanguageModelToolResultPart: class {
+    constructor(
+      public callId: string,
+      public content: unknown,
+    ) {}
+  },
+  CancellationTokenSource: class {
+    token = {};
+    cancel() {}
+    dispose() {}
+  },
   workspace: {
     getConfiguration: () => ({
       get: <T>(_key: string, defaultValue: T): T => defaultValue,
@@ -24,6 +51,57 @@ import {
   isUserVisibleCopilotModel,
   LLMRouter,
 } from "../src/llm-router";
+import * as vscode from "vscode";
+import {
+  buildContextInstructions,
+  effectiveBrowserActions,
+  isChatContext,
+  type ChatContext,
+} from "../src/chat-context";
+
+describe("effective browser context", () => {
+  const context: ChatContext = {
+    version: 1,
+    mode: "input",
+    allowedActions: ["type", "navigate", "click"],
+    globalInstructions: "Use concise answers",
+    profileInstructions: "Use English",
+    taskInstructions: "Write a post",
+    pageStatus: "ok",
+    target: { tabId: 1, url: "https://example.com/" },
+  };
+  it("validates bounded instructions and rejects unknown tools", () => {
+    expect(isChatContext(context)).toBe(true);
+    expect(isChatContext({ ...context, allowedActions: ["evaluate"] })).toBe(
+      false,
+    );
+    expect(
+      isChatContext({ ...context, taskInstructions: "x".repeat(8001) }),
+    ).toBe(false);
+  });
+  it("intersects requested tools with mode, target and page availability", () => {
+    expect(effectiveBrowserActions(context)).toEqual(["type"]);
+    expect(effectiveBrowserActions({ ...context, mode: "read-only" })).toEqual(
+      [],
+    );
+    expect(
+      effectiveBrowserActions({
+        ...context,
+        pageStatus: "permission-required",
+      }),
+    ).toEqual([]);
+    expect(effectiveBrowserActions()).toEqual([]);
+  });
+  it("keeps scoped instructions distinct from runtime facts", () => {
+    const prompt = buildContextInstructions(context, "vscode");
+    expect(prompt).toContain("Write a post");
+    expect(prompt).toContain('"availableBrowserActions":["type"]');
+    expect(prompt).toContain('"playwrightConnected":false');
+    expect(buildContextInstructions(undefined, "vscode")).not.toContain(
+      "Write a post",
+    );
+  });
+});
 
 describe("getAutoProviderOrder", () => {
   it("prefers VS Code LM for lightweight text requests", () => {
@@ -113,6 +191,113 @@ describe("isUserVisibleCopilotModel", () => {
 });
 
 describe("LLMRouter page context prompts", () => {
+  it("stops native reasoning until Chrome supplies an actual browser result", async () => {
+    const sendRequest = vi.fn().mockImplementation(async () => ({
+      stream: (async function* () {
+        yield new vscode.LanguageModelToolCallPart("call-1", "browser_action", {
+          action: "type",
+          selector: "ref:f0:e1",
+          value: "Test",
+        });
+      })(),
+    }));
+    selectedModels.splice(0, selectedModels.length, {
+      id: "test",
+      name: "Test",
+      family: "test",
+      sendRequest,
+    });
+    const router = new LLMRouter();
+    const context: ChatContext = {
+      version: 1,
+      mode: "input",
+      allowedActions: ["type"],
+      globalInstructions: "Global marker",
+      profileInstructions: "",
+      taskInstructions: "",
+      pageStatus: "ok",
+      target: { tabId: 1, url: "https://example.com/" },
+    };
+    const response = await router.chat({
+      settings: {
+        provider: "copilot-agent",
+        copilot: { model: "test" },
+        lmStudio: { endpoint: "http://localhost:1234", model: "" },
+      },
+      messages: [{ role: "user", content: "Fill the name" }],
+      pageContent: "Name field",
+      operationMode: "hybrid",
+      context,
+    });
+    let output = "";
+    for await (const chunk of response) output += chunk;
+    expect(output).toContain("[ACTION: type, ref:f0:e1, Test]");
+    expect(output).not.toContain("📋 結果");
+    expect(sendRequest).toHaveBeenCalledOnce();
+    const [messages, options] = sendRequest.mock.calls[0];
+    expect(JSON.stringify(messages)).toContain("Global marker");
+    expect(options.tools.map((tool: { name: string }) => tool.name)).toEqual([
+      "browser_action",
+    ]);
+    expect(options.tools[0].inputSchema.properties.action.enum).toEqual([
+      "type",
+    ]);
+  });
+
+  it("rejects a model's tool call when that tool was not exposed", async () => {
+    const sendRequest = vi.fn().mockImplementation(async () => ({
+      stream: (async function* () {
+        yield new vscode.LanguageModelToolCallPart("call-2", "run_terminal", {
+          command: "pwd",
+        });
+      })(),
+    }));
+    selectedModels.splice(0, selectedModels.length, {
+      id: "test",
+      name: "Test",
+      family: "test",
+      sendRequest,
+    });
+    const response = await new LLMRouter().chat({
+      settings: {
+        provider: "copilot-agent",
+        copilot: { model: "test" },
+        lmStudio: { endpoint: "http://localhost:1234", model: "" },
+      },
+      messages: [],
+      pageContent: "Page",
+      operationMode: "hybrid",
+    });
+    let output = "";
+    for await (const chunk of response) output += chunk;
+    expect(output).toContain("Tool request rejected");
+    expect(sendRequest).toHaveBeenCalledOnce();
+    expect(sendRequest.mock.calls[0][1].tools).toEqual([]);
+  });
+
+  it("defers browser execution instead of reporting an action as completed", async () => {
+    const router = new LLMRouter() as unknown as {
+      executeAgentTool(
+        name: string,
+        params: Record<string, unknown>,
+      ): Promise<{
+        success: boolean;
+        pending?: boolean;
+        result: string;
+      }>;
+    };
+    expect(
+      await router.executeAgentTool("browser_action", {
+        action: "click",
+        selector: "ref:e5",
+      }),
+    ).toEqual({
+      success: false,
+      pending: true,
+      result: "[ACTION: click, ref:e5]",
+    });
+  });
+
   it("tells the model not to summarize unavailable page text", () => {
     const router = new LLMRouter() as unknown as {
       buildSystemPrompt(pageContent: string): string;

@@ -18,6 +18,8 @@ type ValidationResult<T> =
 
 export class BridgeServer {
   private server: http.Server | null = null;
+  private startPromise: Promise<void> | null = null;
+  private cancelStartup: (() => void) | null = null;
   private port: number;
   private llmRouter: LLMRouter;
   private extensionVersion: string;
@@ -29,6 +31,7 @@ export class BridgeServer {
   }
 
   start(): Promise<void> {
+    if (this.server) return this.startPromise ?? Promise.resolve();
     this.server = http.createServer(async (req, res) => {
       const requestOrigin = this.getRequestOrigin(req);
       if (requestOrigin && !this.isAllowedOrigin(requestOrigin)) {
@@ -105,7 +108,7 @@ export class BridgeServer {
       }
     });
 
-    return new Promise((resolve, reject) => {
+    this.startPromise = new Promise((resolve, reject) => {
       const activeServer = this.server;
       if (!activeServer) {
         reject(new Error("Server initialization failed"));
@@ -114,6 +117,7 @@ export class BridgeServer {
 
       const onListening = () => {
         activeServer.off("error", onStartupError);
+        if (this.server === activeServer) this.cancelStartup = null;
         console.log(
           `AI Browser Bridge: Server listening on http://127.0.0.1:${this.port}`,
         );
@@ -122,7 +126,11 @@ export class BridgeServer {
 
       const onStartupError = (error: NodeJS.ErrnoException) => {
         activeServer.off("listening", onListening);
-        this.server = null;
+        if (this.server === activeServer) {
+          this.server = null;
+          this.startPromise = null;
+          this.cancelStartup = null;
+        }
 
         if (error.code === "EADDRINUSE") {
           reject(new Error(`Port ${this.port} is already in use`));
@@ -134,14 +142,22 @@ export class BridgeServer {
 
       activeServer.once("listening", onListening);
       activeServer.once("error", onStartupError);
+      this.cancelStartup = () => {
+        activeServer.off("listening", onListening);
+        reject(new Error("Server startup cancelled"));
+      };
       activeServer.listen(this.port, "127.0.0.1");
     });
+    return this.startPromise;
   }
 
   stop(): void {
     if (this.server) {
+      this.cancelStartup?.();
+      this.cancelStartup = null;
       this.server.close();
       this.server = null;
+      this.startPromise = null;
       console.log("AI Browser Bridge: Server stopped");
     }
   }
@@ -181,6 +197,8 @@ export class BridgeServer {
       JSON.stringify({
         version: this.extensionVersion,
         bridge: "vscode",
+        contextVersion: 1,
+        browserBackend: "extension-dom",
         providers,
         recommended: {
           chat: "vscode-lm",

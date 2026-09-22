@@ -52,6 +52,29 @@ describe("bridge server authorization gate (HTTP)", () => {
     server.stop();
   });
 
+  it("coalesces repeated start calls without losing the listening server", async () => {
+    const first = server.start();
+    const second = server.start();
+    expect(first).toBe(second);
+    await Promise.all([first, second]);
+    expect((await fetch(`${baseUrl}/health`)).status).toBe(200);
+    server.stop();
+    const restart = server.start();
+    expect(server.start()).toBe(restart);
+    await restart;
+    expect((await fetch(`${baseUrl}/health`)).status).toBe(200);
+  });
+
+  it("settles a startup cancelled before listening", async () => {
+    const transient = new BridgeServer(await getFreePort(), "test");
+    const starting = transient.start();
+    const rejected = expect(starting).rejects.toThrow(
+      "Server startup cancelled",
+    );
+    transient.stop();
+    await rejected;
+  });
+
   it("authorizes requests with the trusted client header and no Origin header", async () => {
     // Chrome omits the Origin header when the extension fetches a host it
     // already has host_permissions for (the local bridge). The request must

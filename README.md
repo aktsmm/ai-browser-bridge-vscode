@@ -59,6 +59,20 @@ Or search for "AI Browser Bridge" in VS Code Extensions (`Ctrl+Shift+X`)
 
 ### Bridge behavior
 
+- `/capabilities` advertises `contextVersion: 1` and the verified `extension-dom` backend. Update/rebuild the Chrome extension and bridge together.
+- Requests carry bounded global/profile/task instructions and a validated operation policy. Tools are exposed only when applicable; unexposed native calls are rejected. The Chrome client owns the browser execution loop: a native browser request ends the current model turn without reporting it as executed.
+- Browser tasks do not expose terminal execution. Playwright CLI/MCP/CDP remain unconnected until an explicitly configured and verified adapter is available; installing Copilot does not grant the bridge all VS Code Chat tools.
+
+### Optional CLI Development Probe
+
+Repeated bridge starts share one startup operation; stopping during startup rejects the pending operation rather than leaving it unresolved. The same lifecycle checks apply to the standalone bridge.
+
+Compatible-range dependency updates on 2026-09-22 remove the previous high/critical VS Code development findings. Two moderate Vitest/mocker development findings remain and require a major-version migration. Run finite tests against trusted fixtures only; do not expose test/UI servers to untrusted clients. Treat the full dependency audit as unresolved until that migration is tested.
+
+The development dependency pins `@playwright/cli` to 0.1.21. Verify it with `node node_modules/@playwright/cli/playwright-cli.js --version`. It is not a bundled runtime executor and is not exposed to model requests.
+
+Existing-browser attachment requires the official Playwright browser extension and explicit target selection. This CLI version automatically captures a snapshot during `attach`; never attach unattended to an unverified active tab. A successful connection does not establish that the intended tab/profile is selected. Use a dedicated test page, verify its identity before interaction, and detach only the session owned by the probe. The current Browser Bridge remains on its verified extension-DOM backend.
+
 - The Chrome side can now save generated Markdown to a workspace-relative path through the VS Code bridge
 - If workspace-relative save is requested without an open workspace, the Chrome extension falls back to browser downloads
 - The Chrome side primary provider setting can choose Auto, VS Code Language Model API, or LM Studio
@@ -99,9 +113,10 @@ CC BY-NC-SA 4.0 © [aktsmm](https://github.com/aktsmm)
 
 ## 🔒 Privacy
 
-- **Data Collection**: None
+- **Data processing**: Requests, instructions, page text/URL/title and supplied attachments/images are processed and forwarded to the selected provider. No developer analytics or advertising telemetry is sent. Do not send information you do not intend that provider to receive.
 - **Communication**: Only operates on localhost using the configured port (default: `localhost:3210`)
 - **External Transmission**: Only sent to Copilot/Local LLM based on provider selection
+- **Saved output**: Explicit file requests can write to the configured workspace; browser downloads are managed by the companion extension. Local LLM endpoints are loopback-only, but further forwarding by a local server depends on its configuration. Optional personal-profile storage belongs to the Chrome extension, not this bridge.
 
 ## 🔗 Related Projects
 

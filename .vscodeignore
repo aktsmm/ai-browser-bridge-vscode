@@ -1,4 +1,6 @@
 .vscode/**
+.github/**
+artifacts/**
 src/**
 tests/**
 out/*.d.ts

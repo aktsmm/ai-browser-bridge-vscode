@@ -2,7 +2,7 @@
   "name": "copilot-browser-bridge-vscode",
   "displayName": "AI Browser Bridge",
   "description": "ブラウザのページ内容をAIで解析・対話。GitHub Copilot またはローカルLLMと連携。",
-  "version": "0.1.22",
+  "version": "0.1.23",
   "publisher": "yamapan",
   "keywords": [
     "browser",
@@ -85,6 +85,7 @@
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0"
   },
   "devDependencies": {
+    "@playwright/cli": "0.1.21",
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.90.0",
     "@typescript-eslint/eslint-plugin": "^8.31.1",

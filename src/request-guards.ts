@@ -1,3 +1,4 @@
+import { isChatContext } from "./chat-context";
 import type { ChatRequest } from "./llm-router";
 
 export type ValidationResult<T> =
@@ -299,6 +300,9 @@ export function validateChatRequestBody(
   }
 
   const body = request as Record<string, unknown>;
+  if (body.context !== undefined && !isChatContext(body.context)) {
+    return { ok: false, error: "Invalid chat context" };
+  }
   const settings = body.settings as Record<string, unknown> | undefined;
 
   if (!settings || typeof settings !== "object") {
