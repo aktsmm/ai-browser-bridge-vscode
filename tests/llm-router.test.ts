@@ -72,6 +72,22 @@ describe("effective browser context", () => {
   };
   it("validates bounded instructions and rejects unknown tools", () => {
     expect(isChatContext(context)).toBe(true);
+    expect(
+      isChatContext({
+        ...context,
+        profileFields: ["custom1"],
+        profileFieldLabels: { custom1: "Organization" },
+      }),
+    ).toBe(true);
+    expect(
+      isChatContext({
+        ...context,
+        profileFieldLabels: { custom1: "x".repeat(61) },
+      }),
+    ).toBe(false);
+    expect(isChatContext({ ...context, profileFields: ["cardNumber"] })).toBe(
+      false,
+    );
     expect(isChatContext({ ...context, allowedActions: ["evaluate"] })).toBe(
       false,
     );
@@ -93,13 +109,66 @@ describe("effective browser context", () => {
     expect(effectiveBrowserActions()).toEqual([]);
   });
   it("keeps scoped instructions distinct from runtime facts", () => {
-    const prompt = buildContextInstructions(context, "vscode");
+    const prompt = buildContextInstructions(
+      {
+        ...context,
+        profileFields: ["custom1"],
+        profileFieldLabels: { custom1: "Organization" },
+      },
+      "vscode",
+    );
     expect(prompt).toContain("Write a post");
+    expect(prompt).toContain('"profileFieldLabels":{"custom1":"Organization"}');
     expect(prompt).toContain('"availableBrowserActions":["type"]');
     expect(prompt).toContain('"playwrightConnected":false');
     expect(buildContextInstructions(undefined, "vscode")).not.toContain(
       "Write a post",
     );
+  });
+  it("sets a default response language without overriding explicit instructions", () => {
+    const japanese = {
+      ...context,
+      responseLanguage: "ja" as const,
+      globalInstructions: "Reply briefly",
+    };
+    expect(isChatContext(japanese)).toBe(true);
+    expect(buildContextInstructions(japanese, "vscode")).toContain(
+      "Reply in Japanese unless",
+    );
+    expect(
+      buildContextInstructions(
+        { ...context, responseLanguage: "en" },
+        "vscode",
+      ),
+    ).toContain("Reply in English unless");
+    expect(isChatContext({ ...context, responseLanguage: "invalid" })).toBe(
+      false,
+    );
+    expect(buildContextInstructions(japanese, "vscode")).toContain(
+      "Reply briefly",
+    );
+  });
+  it("only exposes bounded display editing instructions for opted-in input tasks", () => {
+    const allowed = {
+      ...context,
+      displayEditingEnabled: true,
+      allowedActions: [...context.allowedActions, "replaceText"],
+    };
+    expect(isChatContext(allowed)).toBe(true);
+    expect(effectiveBrowserActions(allowed)).toContain("replaceText");
+    expect(buildContextInstructions(allowed, "vscode")).toContain(
+      "[ACTION: replaceText",
+    );
+    expect(buildContextInstructions(allowed, "vscode")).toContain('"edits":[{');
+    expect(
+      effectiveBrowserActions({ ...allowed, mode: "read-only" }),
+    ).not.toContain("replaceText");
+    expect(
+      buildContextInstructions(
+        { ...allowed, displayEditingEnabled: false },
+        "vscode",
+      ),
+    ).not.toContain("[ACTION: replaceText");
   });
 });
 
