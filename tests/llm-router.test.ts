@@ -121,6 +121,7 @@ describe("effective browser context", () => {
     expect(prompt).toContain('"profileFieldLabels":{"custom1":"Organization"}');
     expect(prompt).toContain('"availableBrowserActions":["type"]');
     expect(prompt).toContain('"playwrightConnected":false');
+    expect(prompt).toContain("Download requested is not download completed");
     expect(buildContextInstructions(undefined, "vscode")).not.toContain(
       "Write a post",
     );
