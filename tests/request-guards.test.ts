@@ -194,6 +194,68 @@ describe("request guards", () => {
     });
   });
 
+  it("accepts explicit Codex and Claude CLI provider settings", () => {
+    const common = {
+      messages: [{ role: "user", content: "Hello" }],
+      pageContent: "short page",
+    };
+    expect(
+      validateChatRequestBody({
+        ...common,
+        settings: { provider: "codex-cli", codexCli: { model: "" } },
+      }).ok,
+    ).toBe(true);
+    expect(
+      validateChatRequestBody({
+        ...common,
+        settings: {
+          provider: "claude-code",
+          claudeCode: { connection: "gateway", model: "copilot/opus" },
+        },
+      }).ok,
+    ).toBe(true);
+  });
+
+  it("rejects missing or invalid explicit CLI provider settings", () => {
+    const common = {
+      messages: [{ role: "user", content: "Hello" }],
+      pageContent: "short page",
+    };
+    expect(
+      validateChatRequestBody({
+        ...common,
+        settings: { provider: "codex-cli" },
+      }),
+    ).toEqual({ ok: false, error: "Invalid codexCli settings" });
+    expect(
+      validateChatRequestBody({
+        ...common,
+        settings: {
+          provider: "claude-code",
+          claudeCode: { connection: "auto", model: "opus" },
+        },
+      }),
+    ).toEqual({ ok: false, error: "Invalid claudeCode settings" });
+    expect(
+      validateChatRequestBody({
+        ...common,
+        settings: {
+          provider: "codex-cli",
+          codexCli: { model: "--dangerously-bypass-approvals-and-sandbox" },
+        },
+      }),
+    ).toEqual({ ok: false, error: "Invalid codexCli settings" });
+    expect(
+      validateChatRequestBody({
+        ...common,
+        settings: {
+          provider: "claude-code",
+          claudeCode: { connection: "direct", model: "model name" },
+        },
+      }),
+    ).toEqual({ ok: false, error: "Invalid claudeCode settings" });
+  });
+
   it("rejects non-loopback lm-studio endpoints", () => {
     const request = {
       settings: {

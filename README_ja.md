@@ -68,7 +68,10 @@ code --install-extension yamapan.copilot-browser-bridge-vscode
 
 - Chrome 側で生成した Markdown を VS Code workspace 相対 path へ保存できるようになりました
 - workspace 相対保存を要求しても workspace が未オープンなら、Chrome 拡張はブラウザのダウンロードへフォールバックします
-- Chrome 側の主な provider 設定から Auto、VS Code Language Model API、LM Studio を選択できます
+- Chrome 側の provider 設定から Auto、VS Code Language Model API、OpenAI Codex CLI、Claude Code、LM Studio を選択できます
+- Codex CLI と Claude Code は明示選択時だけ実行され、Auto fallback には入りません。Claude Code はdirectまたはGW経由を選べます
+- capabilityはDirect認証とGW導入状態を経路別に返します。Chrome設定では既知の利用不可経路だけが無効になり、認証後はBridge状態の更新で再確認できます
+- CLI経路は一時作業フォルダーで起動し、tools・MCP・Chrome連携を無効化します。利用枠と課金先は選択したCLI/GW backendの認証設定に従います
 - Auto は通常チャットとブラウザ操作 Agent 系のどちらでも VS Code Language Model API を優先します。GitHub Copilot CLI は最後の回答 fallback としてのみ使います。LM Studio は明示選択時のみ使います
 - GitHub Copilot SDK は Public Preview の `@github/copilot-sdk` を使用しますが、通常 provider ではなく experimental / advanced fallback 診断として扱います。VS Code extension host では `process.execPath` が Code/Electron を指し SDK runtime 起動に失敗することがあるため、利用可否を gate します
 - VS Code の language model access が使えない場合、GitHub Copilot CLI を最後の fallback 応答経路として利用できます

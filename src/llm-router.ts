@@ -14,6 +14,7 @@ import {
   CopilotSdkClient,
   getCopilotSdkRuntimeBlockReason,
 } from "./copilot-sdk";
+import { CliProviderClient } from "./cli-providers";
 import { isAllowedLmStudioEndpoint } from "./request-guards";
 import { validateTerminalCommand } from "./terminal-command-policy";
 import {
@@ -28,12 +29,19 @@ export interface LLMSettings {
     | "copilot-agent"
     | "copilot-sdk"
     | "copilot-cli"
+    | "codex-cli"
+    | "claude-code"
     | "lm-studio";
   copilot: {
     model: string;
   };
   lmStudio: {
     endpoint: string;
+    model: string;
+  };
+  codexCli?: { model: string };
+  claudeCode?: {
+    connection: "direct" | "gateway";
     model: string;
   };
 }
@@ -71,7 +79,13 @@ export interface ModelInfo {
 }
 
 export interface ProviderCapability {
-  id: "vscode-lm" | "copilot-sdk" | "copilot-cli" | "lm-studio";
+  id:
+    | "vscode-lm"
+    | "copilot-sdk"
+    | "copilot-cli"
+    | "codex-cli"
+    | "claude-code"
+    | "lm-studio";
   name: string;
   status: "available" | "unavailable" | "unknown";
   detail?: string;
@@ -84,6 +98,15 @@ export interface ProviderCapability {
   isExperimental?: boolean;
   userSelectable?: boolean;
   models?: ModelInfo[];
+  connections?: Partial<
+    Record<
+      "direct" | "gateway",
+      {
+        status: "available" | "unavailable" | "unknown";
+        detail?: string;
+      }
+    >
+  >;
 }
 
 type AutoProviderId = "vscode-lm" | "copilot-cli";
@@ -136,6 +159,7 @@ interface ToolResult {
 export class LLMRouter {
   private copilotCliClient = new CopilotCliClient();
   private copilotSdkClient = new CopilotSdkClient();
+  private cliProviderClient = new CliProviderClient();
 
   private async selectCopilotModels(
     selector: { family?: string } = {},
@@ -311,6 +335,60 @@ export class LLMRouter {
         : "Copilot CLI fallback is disabled in VS Code settings.",
     });
 
+    const codexAvailable = await this.cliProviderClient.isAvailable(
+      "codex-cli",
+      "direct",
+      true,
+    );
+    capabilities.push({
+      id: "codex-cli",
+      name: "OpenAI Codex CLI",
+      status: codexAvailable ? "available" : "unavailable",
+      supportsChat: codexAvailable,
+      supportsAgentLoop: codexAvailable,
+      supportsBrowserActions: codexAvailable,
+      supportsModelList: false,
+      supportsVision: false,
+      userSelectable: true,
+      detail: codexAvailable
+        ? "Uses the existing Codex CLI login in a read-only ephemeral session."
+        : "Codex CLI was not available to the bridge process.",
+    });
+
+    const [claudeDirectAvailable, claudeGatewayAvailable] = await Promise.all([
+      this.cliProviderClient.isAvailable("claude-code", "direct", true),
+      this.cliProviderClient.isAvailable("claude-code", "gateway", true),
+    ]);
+    capabilities.push({
+      id: "claude-code",
+      name: "Claude Code",
+      status:
+        claudeDirectAvailable || claudeGatewayAvailable
+          ? "available"
+          : "unavailable",
+      supportsChat: claudeDirectAvailable || claudeGatewayAvailable,
+      supportsAgentLoop: claudeDirectAvailable || claudeGatewayAvailable,
+      supportsBrowserActions: claudeDirectAvailable || claudeGatewayAvailable,
+      supportsModelList: false,
+      supportsVision: false,
+      userSelectable: true,
+      detail: `Direct: ${claudeDirectAvailable ? "authenticated" : "sign-in required"}; GW: ${claudeGatewayAvailable ? "installed" : "unavailable"}.`,
+      connections: {
+        direct: {
+          status: claudeDirectAvailable ? "available" : "unavailable",
+          detail: claudeDirectAvailable
+            ? "Claude Code authentication is ready."
+            : "Sign in with Claude Code, then refresh Bridge status.",
+        },
+        gateway: {
+          status: claudeGatewayAvailable ? "available" : "unavailable",
+          detail: claudeGatewayAvailable
+            ? "GW is installed; its configured backend is used."
+            : "Install or repair GW, then refresh Bridge status.",
+        },
+      },
+    });
+
     capabilities.push({
       id: "lm-studio",
       name: "LM Studio",
@@ -371,6 +449,36 @@ export class LLMRouter {
     const response = await this.copilotSdkClient.runPrompt(
       prompt,
       modelFamily,
+      abortSignal,
+    );
+    yield response;
+  }
+
+  private async *chatWithCliProvider(
+    provider: "codex-cli" | "claude-code",
+    model: string,
+    connection: "direct" | "gateway",
+    systemPrompt: string,
+    messages: ChatMessage[],
+    fallbackMode: "chat" | "agent",
+    abortSignal?: AbortSignal,
+  ): AsyncIterable<string> {
+    const conversation = messages
+      .map((message) => `${message.role.toUpperCase()}: ${message.content}`)
+      .join("\n\n");
+    const prompt = [
+      systemPrompt.trim(),
+      "",
+      fallbackMode === "agent"
+        ? "Mode: browser agent. Emit only the ACTION protocol described above; the Chrome extension validates and executes it."
+        : "Mode: chat. Return a direct answer without ACTION commands.",
+      "Respond in the user's language.",
+      "",
+      conversation,
+    ].join("\n");
+    const response = await this.cliProviderClient.runPrompt(
+      { provider, model, connection },
+      prompt,
       abortSignal,
     );
     yield response;
@@ -451,21 +559,10 @@ export class LLMRouter {
     // Build system prompt with page content
     const systemPrompt = this.buildSystemPrompt(pageContent, request.context);
 
-    if (settings.provider === "auto") {
-      return this.chatWithAuto(request, systemPrompt, abortSignal);
-    }
-
-    if (settings.provider === "copilot") {
-      return this.chatWithCopilot(
-        settings.copilot.model,
-        systemPrompt,
-        messages,
-        screenshot,
-        attachments,
-        abortSignal,
-      );
-    } else if (settings.provider === "copilot-agent") {
-      if (request.operationMode === "text") {
+    switch (settings.provider) {
+      case "auto":
+        return this.chatWithAuto(request, systemPrompt, abortSignal);
+      case "copilot":
         return this.chatWithCopilot(
           settings.copilot.model,
           systemPrompt,
@@ -474,43 +571,89 @@ export class LLMRouter {
           attachments,
           abortSignal,
         );
+      case "copilot-agent":
+        return request.operationMode === "text"
+          ? this.chatWithCopilot(
+              settings.copilot.model,
+              systemPrompt,
+              messages,
+              screenshot,
+              attachments,
+              abortSignal,
+            )
+          : this.chatWithCopilotAgent(
+              settings.copilot.model,
+              pageContent,
+              messages,
+              screenshot,
+              attachments,
+              abortSignal,
+              true,
+              request.context,
+            );
+      case "copilot-sdk":
+        return this.chatWithCopilotSdk(
+          settings.copilot.model,
+          this.buildAgentSystemPrompt(
+            pageContent,
+            Boolean(screenshot),
+            request.context,
+          ),
+          messages,
+          this.resolveCopilotFallbackMode(request.operationMode),
+          abortSignal,
+        );
+      case "copilot-cli":
+        return this.chatWithCopilotCliFallback(
+          systemPrompt,
+          messages,
+          this.resolveCopilotFallbackMode(request.operationMode),
+          false,
+          abortSignal,
+        );
+      case "codex-cli":
+        return this.chatWithCliProvider(
+          "codex-cli",
+          settings.codexCli?.model ?? "",
+          "direct",
+          request.operationMode === "text"
+            ? systemPrompt
+            : this.buildAgentSystemPrompt(
+                pageContent,
+                Boolean(screenshot),
+                request.context,
+              ),
+          messages,
+          this.resolveCopilotFallbackMode(request.operationMode),
+          abortSignal,
+        );
+      case "claude-code":
+        return this.chatWithCliProvider(
+          "claude-code",
+          settings.claudeCode?.model ?? "",
+          settings.claudeCode?.connection ?? "direct",
+          request.operationMode === "text"
+            ? systemPrompt
+            : this.buildAgentSystemPrompt(
+                pageContent,
+                Boolean(screenshot),
+                request.context,
+              ),
+          messages,
+          this.resolveCopilotFallbackMode(request.operationMode),
+          abortSignal,
+        );
+      case "lm-studio":
+        return this.chatWithLMStudio(
+          settings.lmStudio,
+          systemPrompt,
+          messages,
+          abortSignal,
+        );
+      default: {
+        const unreachable: never = settings.provider;
+        throw new Error(`Unsupported provider: ${String(unreachable)}`);
       }
-
-      return this.chatWithCopilotAgent(
-        settings.copilot.model,
-        pageContent,
-        messages,
-        screenshot,
-        attachments,
-        abortSignal,
-        true,
-        request.context,
-      );
-    } else if (settings.provider === "copilot-sdk") {
-      return this.chatWithCopilotSdk(
-        settings.copilot.model,
-        screenshot
-          ? this.buildAgentSystemPrompt(pageContent, true, request.context)
-          : this.buildAgentSystemPrompt(pageContent, false, request.context),
-        messages,
-        this.resolveCopilotFallbackMode(request.operationMode),
-        abortSignal,
-      );
-    } else if (settings.provider === "copilot-cli") {
-      return this.chatWithCopilotCliFallback(
-        systemPrompt,
-        messages,
-        this.resolveCopilotFallbackMode(request.operationMode),
-        false,
-        abortSignal,
-      );
-    } else {
-      return this.chatWithLMStudio(
-        settings.lmStudio,
-        systemPrompt,
-        messages,
-        abortSignal,
-      );
     }
   }
 

@@ -124,6 +124,8 @@ describe("bridge server authorization gate (HTTP)", () => {
       "vscode-lm",
       "copilot-sdk",
       "copilot-cli",
+      "codex-cli",
+      "claude-code",
       "lm-studio",
     ]);
     expect(body.providers).toContainEqual(

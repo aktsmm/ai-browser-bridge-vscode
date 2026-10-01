@@ -1,4 +1,5 @@
 import { isChatContext } from "./chat-context";
+import { validateCliModelId } from "./cli-providers";
 import type { ChatRequest } from "./llm-router";
 
 export type ValidationResult<T> =
@@ -319,6 +320,8 @@ export function validateChatRequestBody(
     "copilot-agent",
     "copilot-sdk",
     "copilot-cli",
+    "codex-cli",
+    "claude-code",
     "lm-studio",
   ];
   if (typeof provider !== "string" || !allowedProviders.includes(provider)) {
@@ -362,6 +365,36 @@ export function validateChatRequestBody(
         ok: false,
         error: "LM Studio endpoint must use a localhost or loopback address",
       };
+    }
+  }
+
+  if (provider === "codex-cli") {
+    const codexCli = settings.codexCli as Record<string, unknown> | undefined;
+    if (!codexCli || typeof codexCli.model !== "string") {
+      return { ok: false, error: "Invalid codexCli settings" };
+    }
+    try {
+      validateCliModelId(codexCli.model);
+    } catch {
+      return { ok: false, error: "Invalid codexCli settings" };
+    }
+  }
+
+  if (provider === "claude-code") {
+    const claudeCode = settings.claudeCode as
+      | Record<string, unknown>
+      | undefined;
+    if (
+      !claudeCode ||
+      typeof claudeCode.model !== "string" ||
+      !["direct", "gateway"].includes(String(claudeCode.connection))
+    ) {
+      return { ok: false, error: "Invalid claudeCode settings" };
+    }
+    try {
+      validateCliModelId(claudeCode.model);
+    } catch {
+      return { ok: false, error: "Invalid claudeCode settings" };
     }
   }
 

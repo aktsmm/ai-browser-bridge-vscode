@@ -79,7 +79,10 @@ Existing-browser attachment requires the official Playwright browser extension a
 
 - The Chrome side can now save generated Markdown to a workspace-relative path through the VS Code bridge
 - If workspace-relative save is requested without an open workspace, the Chrome extension falls back to browser downloads
-- The Chrome side primary provider setting can choose Auto, VS Code Language Model API, or LM Studio
+- The Chrome side provider setting can choose Auto, VS Code Language Model API, OpenAI Codex CLI, Claude Code, or LM Studio
+- Codex CLI and Claude Code run only when explicitly selected and are never part of Auto fallback. Claude Code supports direct and GW connections
+- Capabilities report Direct authentication and GW installation separately. Chrome disables only a known-unavailable route and can re-probe it with Bridge Status **Refresh**
+- CLI routes run in an isolated temporary working directory with tools, MCP, and Chrome integration disabled. Usage and billing follow the selected CLI or GW backend authentication
 - Auto prioritizes VS Code Language Model API for both chat and browser-agent work. GitHub Copilot CLI is reserved for the last answer fallback. LM Studio is used only when explicitly selected
 - The GitHub Copilot SDK route uses the Public Preview `@github/copilot-sdk` and is exposed only as an experimental/advanced fallback diagnostic; VS Code extension hosts can resolve `process.execPath` to Code/Electron instead of node, so SDK runtime availability is gated before use
 - GitHub Copilot CLI can be used as a last-resort fallback response path when VS Code language model access is unavailable
