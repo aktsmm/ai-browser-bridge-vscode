@@ -198,6 +198,7 @@ export class BridgeServer {
         version: this.extensionVersion,
         bridge: "vscode",
         contextVersion: 1,
+        displayTextLookupVersion: 1,
         browserBackend: "extension-dom",
         providers,
         recommended: {

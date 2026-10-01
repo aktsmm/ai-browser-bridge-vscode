@@ -8,6 +8,20 @@ export interface CopilotCliMessage {
 
 export const COPILOT_CLI_TIMEOUT_MS = 30_000;
 
+export function buildRestrictedCopilotCliArgs(prompt: string): string[] {
+  return [
+    "-p",
+    prompt,
+    "--silent",
+    "--available-tools=__browser_bridge_no_native_tools__",
+    "--deny-tool=shell",
+    "--deny-tool=write",
+    "--deny-tool=read",
+    "--no-custom-instructions",
+    "--no-ask-user",
+  ];
+}
+
 export function buildCopilotCliSpawnSpec(
   resolvedCommand: string,
   platform = process.platform,
@@ -171,7 +185,10 @@ export class CopilotCliClient {
   }
 
   async runPrompt(prompt: string, abortSignal?: AbortSignal): Promise<string> {
-    const result = await runCliCommand(["-p", prompt, "--silent"], abortSignal);
+    const result = await runCliCommand(
+      buildRestrictedCopilotCliArgs(prompt),
+      abortSignal,
+    );
     if (result.exitCode !== 0) {
       throw new Error(
         result.stderr.trim() ||

@@ -1008,7 +1008,7 @@ ${browserActionsDoc}
         {
           name: "browser_action",
           description:
-            "ブラウザを操作します。CSSセレクタを正確に指定してください。",
+            "許可されたブラウザ操作を要求します。表示編集はfindDisplayTextで対象文言を検索し、返された専用refをreplaceTextに指定します。要求だけでは実行完了ではありません。",
           inputSchema: {
             type: "object",
             properties: {
@@ -1022,6 +1022,9 @@ ${browserActionsDoc}
                   "back",
                   "forward",
                   "reload",
+                  ...(context?.displayTextLookupVersion === 1
+                    ? ["findDisplayText", "replaceText"]
+                    : []),
                 ].filter((action) =>
                   effectiveBrowserActions(context).includes(action),
                 ),
@@ -1030,11 +1033,12 @@ ${browserActionsDoc}
               selector: {
                 type: "string",
                 description:
-                  "CSSセレクタ (例: #submit-btn, .btn-primary, input[type='radio']:first-of-type, button[data-test='agree'])",
+                  "スナップショットのref。replaceTextではfindDisplayTextが返したref:f0:d<token>のみ。参照を推測しないでください。",
               },
               value: {
                 type: "string",
-                description: "navigate時のURL、またはtype時の入力テキスト",
+                description:
+                  "navigate時のURL、type/replaceText時のテキスト、findDisplayText時の検索する正確な表示文言",
               },
             },
             required: ["action"],
@@ -1062,6 +1066,9 @@ ${browserActionsDoc}
                 "back",
                 "forward",
                 "reload",
+                ...(context?.displayTextLookupVersion === 1
+                  ? ["findDisplayText", "replaceText"]
+                  : []),
               ].includes(action),
             );
           if (tool.name === "run_terminal") return false;
@@ -1302,6 +1309,12 @@ ${browserActionsDoc}
           // Generate proper ACTION format for Chrome extension to parse
           let actionCommand = "";
           switch (action) {
+            case "findDisplayText":
+              actionCommand = `[ACTION: findDisplayText, ${JSON.stringify({ text: value })}]`;
+              break;
+            case "replaceText":
+              actionCommand = `[ACTION: replaceText, ${JSON.stringify({ selector, text: value })}]`;
+              break;
             case "navigate":
               actionCommand = `[ACTION: navigate, ${value || selector}]`;
               break;

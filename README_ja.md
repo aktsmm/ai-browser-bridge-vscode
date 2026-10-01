@@ -1,5 +1,9 @@
 # AI Browser Bridge for VS Code
 
+## 表示編集の連携
+
+更新済みのChrome拡張では、表示編集を「今回だけ」または「このサイトでは常に許可」から選べます。このブリッジは `/capabilities` で `displayTextLookupVersion: 1` を返し、指定文言の検索とドキュメントに紐づいた参照による一時変更に対応します。フォーム内の静的見出しも対象ですが、入力値・ボタン・最終送信は保護します。許可・変更・元に戻す処理はChrome拡張が実行し、モデルの操作要求だけでは変更完了とみなしません。旧Chromeクライアントは従来の参照契約を維持します。
+
 [![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/yamapan.copilot-browser-bridge-vscode?label=VS%20Code%20Marketplace&logo=visual-studio-code)](https://marketplace.visualstudio.com/items?itemName=yamapan.copilot-browser-bridge-vscode)
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](LICENSE)
 [![GitHub](https://img.shields.io/github/stars/aktsmm/ai-browser-bridge-vscode?style=social)](https://github.com/aktsmm/ai-browser-bridge-vscode)

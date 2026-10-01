@@ -11,10 +11,25 @@ vi.mock("vscode", () => ({
 import {
   buildCopilotCliPrompt,
   buildCopilotCliSpawnSpec,
+  buildRestrictedCopilotCliArgs,
   CopilotCliClient,
 } from "../src/copilot-cli";
 
 describe("copilot CLI helper", () => {
+  it("denies native tools and ignores custom instructions for every fallback request", () => {
+    const args = buildRestrictedCopilotCliArgs("Synthetic prompt");
+    expect(args).toEqual([
+      "-p",
+      "Synthetic prompt",
+      "--silent",
+      "--available-tools=__browser_bridge_no_native_tools__",
+      "--deny-tool=shell",
+      "--deny-tool=write",
+      "--deny-tool=read",
+      "--no-custom-instructions",
+      "--no-ask-user",
+    ]);
+  });
   it("builds a chat fallback prompt with conversation history", () => {
     const prompt = buildCopilotCliPrompt(
       "System prompt",

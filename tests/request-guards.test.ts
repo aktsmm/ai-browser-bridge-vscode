@@ -8,6 +8,9 @@ import {
   isAllowedExtensionOrigin,
   MAX_ATTACHMENT_COUNT,
   MAX_PAGE_CONTENT_LENGTH,
+  MAX_CHAT_MESSAGES,
+  MAX_CHAT_MESSAGE_LENGTH,
+  MAX_CHAT_HISTORY_LENGTH,
   normalizeAllowedExtensionOrigins,
   validateChatRequestBody,
   validatePlaywrightParams,
@@ -17,6 +20,52 @@ const VALID_EXTENSION_ORIGIN =
   "chrome-extension://abcdefghijklmnopabcdefghijklmnop";
 
 describe("request guards", () => {
+  it("accepts chat history boundaries and rejects oversized input without trimming", () => {
+    const base = {
+      settings: { provider: "copilot", copilot: { model: "test" } },
+      pageContent: "Synthetic page",
+    };
+    const message = (content: string) => ({ role: "user", content });
+    expect(
+      validateChatRequestBody({
+        ...base,
+        messages: Array.from({ length: MAX_CHAT_MESSAGES }, () => message("a")),
+      }).ok,
+    ).toBe(true);
+    expect(
+      validateChatRequestBody({
+        ...base,
+        messages: Array.from({ length: MAX_CHAT_MESSAGES + 1 }, () =>
+          message("a"),
+        ),
+      }).ok,
+    ).toBe(false);
+    expect(
+      validateChatRequestBody({
+        ...base,
+        messages: [message("a".repeat(MAX_CHAT_MESSAGE_LENGTH))],
+      }).ok,
+    ).toBe(true);
+    expect(
+      validateChatRequestBody({
+        ...base,
+        messages: [message("a".repeat(MAX_CHAT_MESSAGE_LENGTH + 1))],
+      }).ok,
+    ).toBe(false);
+    const boundary = Array.from(
+      { length: MAX_CHAT_HISTORY_LENGTH / MAX_CHAT_MESSAGE_LENGTH },
+      () => message("a".repeat(MAX_CHAT_MESSAGE_LENGTH)),
+    );
+    expect(validateChatRequestBody({ ...base, messages: boundary }).ok).toBe(
+      true,
+    );
+    expect(
+      validateChatRequestBody({
+        ...base,
+        messages: [...boundary, message("a")],
+      }).ok,
+    ).toBe(false);
+  });
   it("normalizes additional extension origins", () => {
     expect(
       normalizeAllowedExtensionOrigins([

@@ -11,6 +11,9 @@ export const DEFAULT_ALLOWED_EXTENSION_ORIGINS = [
 
 export const MAX_PAGE_CONTENT_LENGTH = 50_000;
 export const MAX_ATTACHMENT_COUNT = 5;
+export const MAX_CHAT_MESSAGES = 200;
+export const MAX_CHAT_MESSAGE_LENGTH = 100_000;
+export const MAX_CHAT_HISTORY_LENGTH = 500_000;
 
 export function isAllowedLmStudioEndpoint(endpoint: string): boolean {
   try {
@@ -376,8 +379,15 @@ export function validateChatRequestBody(
   if (!Array.isArray(body.messages)) {
     return { ok: false, error: "Invalid messages" };
   }
+  if (body.messages.length > MAX_CHAT_MESSAGES) {
+    return {
+      ok: false,
+      error: `messages exceed ${MAX_CHAT_MESSAGES} items; clear chat history before retrying`,
+    };
+  }
 
   const roleSet = new Set(["user", "assistant", "system"]);
+  let historyLength = 0;
   for (const message of body.messages) {
     if (!message || typeof message !== "object") {
       return { ok: false, error: "Invalid message item" };
@@ -390,6 +400,19 @@ export function validateChatRequestBody(
     }
     if (typeof content !== "string") {
       return { ok: false, error: "Invalid message content" };
+    }
+    if (content.length > MAX_CHAT_MESSAGE_LENGTH) {
+      return {
+        ok: false,
+        error: `message content exceeds ${MAX_CHAT_MESSAGE_LENGTH} characters; shorten the message before retrying`,
+      };
+    }
+    historyLength += content.length;
+    if (historyLength > MAX_CHAT_HISTORY_LENGTH) {
+      return {
+        ok: false,
+        error: `chat history exceeds ${MAX_CHAT_HISTORY_LENGTH} characters; clear chat history before retrying`,
+      };
     }
   }
 

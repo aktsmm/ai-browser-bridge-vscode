@@ -86,13 +86,13 @@
   },
   "devDependencies": {
     "@playwright/cli": "0.1.21",
-    "@types/node": "^20.0.0",
+    "@types/node": "^22.0.0",
     "@types/vscode": "^1.90.0",
     "@typescript-eslint/eslint-plugin": "^8.31.1",
     "@typescript-eslint/parser": "^8.31.1",
     "eslint": "^9.26.0",
     "typescript": "^5.7.0",
-    "vitest": "^3.2.4"
+    "vitest": "^5.0.1"
   },
   "license": "CC-BY-NC-SA-4.0",
   "icon": "media/icon.png",

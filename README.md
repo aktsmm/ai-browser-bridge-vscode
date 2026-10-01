@@ -59,7 +59,7 @@ Or search for "AI Browser Bridge" in VS Code Extensions (`Ctrl+Shift+X`)
 
 ### Bridge behavior
 
-- `/capabilities` advertises `contextVersion: 1` and the verified `extension-dom` backend. Update/rebuild the Chrome extension and bridge together.
+- `/capabilities` advertises `contextVersion: 1`, `displayTextLookupVersion: 1` and the verified `extension-dom` backend. Update/rebuild the Chrome extension and bridge together. Updated Chrome clients can request exact-text lookup and temporary static-heading editing, including headings inside forms, using document-bound display handles. Older clients retain their legacy ref contract. Execution, per-site consent and user-invoked undo remain owned by the Chrome extension; tool requests alone do not confirm DOM changes.
 - Requests carry bounded global/profile/task instructions and a validated operation policy. Tools are exposed only when applicable; unexposed native calls are rejected. The Chrome client owns the browser execution loop: a native browser request ends the current model turn without reporting it as executed.
 - Browser tasks do not expose terminal execution. Playwright CLI/MCP/CDP remain unconnected until an explicitly configured and verified adapter is available; installing Copilot does not grant the bridge all VS Code Chat tools.
 
@@ -67,7 +67,11 @@ Or search for "AI Browser Bridge" in VS Code Extensions (`Ctrl+Shift+X`)
 
 Repeated bridge starts share one startup operation; stopping during startup rejects the pending operation rather than leaving it unresolved. The same lifecycle checks apply to the standalone bridge.
 
-Compatible-range dependency updates on 2026-09-22 remove the previous high/critical VS Code development findings. Two moderate Vitest/mocker development findings remain and require a major-version migration. Run finite tests against trusted fixtures only; do not expose test/UI servers to untrusted clients. Treat the full dependency audit as unresolved until that migration is tested.
+The 2026-10-01 migration to stable Vitest 5.0.1 and Node 22 development types resolves the earlier Vitest/mocker findings. The full audit reports zero findings; `npm ci`, 54 tests, lint and compile passed. Use a Vitest-supported Node release (this migration was tested on Node 22.15). Run finite tests against trusted fixtures and do not expose test/UI servers to untrusted clients. Audit status is a dated observation, not a permanent guarantee.
+
+CLI fallback additionally restricts native-tool availability and denies read/write/shell at process invocation, with custom instructions and tool prompts disabled. The current CLI accepted the restricted invocation; an incompatible CLI fails closed rather than retrying without restrictions.
+
+Chat input is bounded to 200 messages, 100,000 characters per message and 500,000 characters across message contents, measured by JavaScript string length. Exact limits are accepted; excess input is rejected before provider execution with guidance to shorten the message or clear history. The request is not silently trimmed. The standalone bridge uses identical limits, verified by `validate:bridge`.
 
 The development dependency pins `@playwright/cli` to 0.1.21. Verify it with `node node_modules/@playwright/cli/playwright-cli.js --version`. It is not a bundled runtime executor and is not exposed to model requests.
 
