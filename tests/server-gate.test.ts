@@ -91,8 +91,9 @@ describe("bridge server authorization gate (HTTP)", () => {
   it("allows the health check without any auth headers", async () => {
     const response = await fetch(`${baseUrl}/health`);
     expect(response.status).toBe(200);
-    const body = (await response.json()) as { status: string };
+    const body = (await response.json()) as { status: string; bridge: string };
     expect(body.status).toBe("ok");
+    expect(body.bridge).toBe("vscode");
   });
 
   it("rejects protected routes without the trusted client header", async () => {

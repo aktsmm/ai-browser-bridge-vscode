@@ -181,7 +181,13 @@ export class BridgeServer {
 
   private async handleHealth(res: http.ServerResponse): Promise<void> {
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ status: "ok", version: this.extensionVersion }));
+    res.end(
+      JSON.stringify({
+        status: "ok",
+        version: this.extensionVersion,
+        bridge: "vscode",
+      }),
+    );
   }
 
   private async handleModels(res: http.ServerResponse): Promise<void> {
