@@ -57,6 +57,8 @@ Or search for "AI Browser Bridge" in VS Code Extensions (`Ctrl+Shift+X`)
 | `copilotBrowserBridge.enableCopilotCliFallback` | true    | Allow GitHub Copilot CLI fallback when VS Code model access is unavailable                          |
 | `copilotBrowserBridge.allowedExtensionOrigins`  | []      | Additional allowed `chrome-extension://` origins (only enforced when an `Origin` header is present) |
 
+The VS Code bridge uses port 3210 and reports `bridge: "vscode"` from `/health`. The standalone companion (no VS Code needed) uses port 3211; the Chrome extension tries 3210 first and falls back to 3211.
+
 ### Bridge behavior
 
 - `/capabilities` advertises `contextVersion: 1`, `displayTextLookupVersion: 1` and the verified `extension-dom` backend. Update/rebuild the Chrome extension and bridge together. Updated Chrome clients can request exact-text lookup and temporary static-heading editing, including headings inside forms, using document-bound display handles. Older clients retain their legacy ref contract. Execution, per-site consent and user-invoked undo remain owned by the Chrome extension; tool requests alone do not confirm DOM changes.

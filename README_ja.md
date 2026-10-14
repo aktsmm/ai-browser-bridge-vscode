@@ -64,6 +64,8 @@ code --install-extension yamapan.copilot-browser-bridge-vscode
 | `copilotBrowserBridge.enableCopilotCliFallback` | true       | VS Code のモデルアクセスが使えない場合に GitHub Copilot CLI fallback を許可          |
 | `copilotBrowserBridge.allowedExtensionOrigins`  | []         | 追加で許可する `chrome-extension://` オリジン（`Origin` ヘッダーがある場合のみ適用） |
 
+VS Code の bridge はポート 3210 を使い、`/health` で `bridge: "vscode"` を返します。VS Code なしで使える standalone companion はポート 3211 を使い、Chrome 拡張は 3210 を先に試して不通なら 3211 へ切り替えます。
+
 ### Bridge の挙動
 
 - Chrome 側で生成した Markdown を VS Code workspace 相対 path へ保存できるようになりました
